@@ -1,6 +1,11 @@
-// todo:
-// vaccinator crit resistance (working on it...)
-// make debuffs not last shorter when cloaked (todo)
+// 2024.10.11:
+// this code is.. a mess, to say the least.
+// the syntax is horrible because this was my first ever sm plugin, there's a
+// lot of ugly stuff going on and honestly i'm only just maintaining gamedata
+// for this plugin.
+//
+// in the future, i *may* work on a successor plugin - it just depends on
+// my motivation and my current project ideas
 
 //////////////////////////////////////////////////////////////////////////////
 // MADE BY NOTNHEAVY. USES GPL-3, AS PER REQUEST OF SOURCEMOD               //
@@ -31,7 +36,7 @@
 #define TICK_RATE 66
 #define TICK_RATE_PRECISION GetTickInterval()
 #define MAX_ENTITY_COUNT 2048
-#define MAX_WEAPON_COUNT 8
+#define MAX_WEAPON_COUNT 10
 #define MAX_SHORTSTOP_CLIP 4
 #define SCOUT_PISTOL_AMMO_TYPE 2
 #define FLESH_IMPACT_BULLET_COUNT 5
@@ -134,13 +139,11 @@ DHookSetup DHooks_CTFPlayer_AddToSpyKnife;
 DHookSetup DHooks_CTFPlayer_OnTakeDamage_Alive;
 DHookSetup DHooks_CTFPlayerShared_AddCond;
 DHookSetup DHooks_CTFPlayerShared_RemoveCond;
-DHookSetup DHooks_CTFPlayerShared_ModifyRage;
+DHookSetup DHooks_CTFPlayerShared_SetRageMeter;
 DHookSetup DHooks_CTFPlayerShared_CalcChargeCrit;
 DHookSetup DHooks_CTFPlayerShared_AddToSpyCloakMeter;
-DHookSetup DHooks_CTFPlayerShared_Heal;
+//DHookSetup DHooks_CTFPlayerShared_Heal;
 DHookSetup DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect;
-DHookSetup DHooks_CTFPlayerShared_Disguise;
-DHookSetup DHooks_CTFPlayerShared_UpdateCloakMeter;
 DHookSetup DHooks_CTFWeaponBaseMelee_OnSwingHit;
 DHookSetup DHooks_CTFMinigun_SharedAttack;
 DHookSetup CTFWearable_CTFWearable_Break;
@@ -160,8 +163,8 @@ Handle SDKCall_CTFPlayer_EquipWearable;
 Handle SDKCall_CTFItem_GetItemID;
 Handle SDKCall_CWeaponMedigun_CanAttack;
 Handle SDKCall_CBaseObject_DetonateObject;
+Handle SDKCall_CBaseObject_GetType;
 
-Handle SDKCall_CTFPlayer_GetObjectOfType;
 Handle SDKCall_CTFPlayer_TryToPickupBuilding;
 Handle SDKCall_CTFWeaponBaseGun_GetWeaponSpread;
 Handle SDKCall_CTFWeaponBaseGun_GetProjectileDamage;
@@ -188,10 +191,18 @@ float MemoryPatch_NormalScorchShotKnockback_NewValue = 100.00;
 
 Address MemoryPatch_DisableDebuffShortenWhilstCloaked;
 Address MemoryPatch_DisableDebuffShortenWhilstCloaked_oldValue;
-float MemoryPatch_DisableDebuffShortenWhilstCloaked_NewValue = 1.00;
+float MemoryPatch_DisableDebuffShortenWhilstCloaked_NewValue = 0.00;
+
+Address MemoryPatch_FixYourEternalReward;
+char MemoryPatch_FixYourEternalReward_OldValue[6];
+char MemoryPatch_FixYourEternalReward_NewValue[] = "\x90\x90\x90\x90\x90\x90";
+int MemoryPatch_FixYourEternalReward_NOPCount;
+
+Address MemoryPatch_DisguiseIsAlways2Seconds;
+Address MemoryPatch_DisguiseIsAlways2Seconds_OldValue;
+float MemoryPatch_DisguiseIsAlways2Seconds_NewValue = 2.00;
 
 Address CTFPlayerShared_m_pOuter;
-Address CTFPlayerShared_m_flDisguiseCompleteTime;
 Address CGameTrace_m_pEnt;
 Address CTakeDamageInfo_m_hAttacker;
 Address CTakeDamageInfo_m_flDamage;
@@ -201,6 +212,7 @@ Address CTakeDamageInfo_m_eCritType;
 Address CWeaponMedigun_m_bReloadDown; // *((_BYTE *)this + 2059)
 Address CObjectSentrygun_m_flShieldFadeTime; // *((float *)this + 712)
 Address CObjectBase_m_flHealth; // *((float *)a1 + 652)
+Address CTFPlayer_m_aObjects;
 const Address TFPlayerClassData_t_m_flMaxSpeed = view_as<Address>(640); // *((float *)this + 160)
 
 Address SpyClassData;
@@ -221,7 +233,7 @@ public Plugin myinfo =
     name = PLUGIN_NAME,
     author = "NotnHeavy",
     description = "An attempt to revert weapon functionality to how they were pre-Gun Mettle, as accurately as possible.",
-    version = "1.3",
+    version = "1.4.8",
     url = "https://github.com/NotnHeavy/TF2-Pre-Gun-Mettle-Reverts"
 };
 
@@ -558,7 +570,7 @@ enum struct Player
     int TicksSinceBonkEnd;
 
     // Crit-a-Cola.
-    int TicksSincePrimaryAttack;
+    int TicksSinceAttack;
 
     // Flying Guillotine.
     float CleaverChargeMeter;
@@ -612,9 +624,6 @@ enum struct Player
 
     // Bazaar Bargain.
     BazaarBargainShotManager BazaarBargainShot;
-
-    // Cloaking.
-    bool UpdatingCloakMeter;
 
     // Dead Ringer.
     bool FeigningDeath;
@@ -775,8 +784,22 @@ void SetTF2ConVarValue(char[] name, any value)
 {
     for (int i = 0; i < sizeof(defaultConVars); ++i)
     {
-        if (StrEqual(defaultConVars[i].Name, name) && defaultConVars[i].Variable != INVALID_HANDLE)
+        if (StrEqual(defaultConVars[i].Name, name))
         {
+            if (defaultConVars[i].Variable == INVALID_HANDLE)
+            {
+                defaultConVars[i].Variable = FindConVar(defaultConVars[i].Name);
+                if (defaultConVars[i].Variable != INVALID_HANDLE)
+                {
+                    if (defaultConVars[i].Type == TF2ConVarType_Int)
+                        defaultConVars[i].DefaultValue = GetConVarInt(defaultConVars[i].Variable);
+                    else if (defaultConVars[i].Type == TF2ConVarType_Float)
+                        defaultConVars[i].DefaultValue = GetConVarFloat(defaultConVars[i].Variable);
+                }
+                else
+                    break;
+            }
+
             if (defaultConVars[i].Type == TF2ConVarType_Int)
                 SetConVarInt(defaultConVars[i].Variable, value);
             else if (defaultConVars[i].Type == TF2ConVarType_Float)
@@ -843,13 +866,11 @@ public void OnPluginStart()
     DHooks_CTFPlayer_OnTakeDamage_Alive = DHookCreateFromConf(config, "CTFPlayer::OnTakeDamage_Alive");
     DHooks_CTFPlayerShared_AddCond = DHookCreateFromConf(config, "CTFPlayerShared::AddCond");
     DHooks_CTFPlayerShared_RemoveCond = DHookCreateFromConf(config, "CTFPlayerShared::RemoveCond");
-    DHooks_CTFPlayerShared_ModifyRage = DHookCreateFromConf(config, "CTFPlayerShared::ModifyRage");
+    DHooks_CTFPlayerShared_SetRageMeter = DHookCreateFromConf(config, "CTFPlayerShared::SetRageMeter");
     DHooks_CTFPlayerShared_CalcChargeCrit = DHookCreateFromConf(config, "CTFPlayerShared::CalcChargeCrit");
     DHooks_CTFPlayerShared_AddToSpyCloakMeter = DHookCreateFromConf(config, "CTFPlayerShared::AddToSpyCloakMeter");
-    DHooks_CTFPlayerShared_Heal = DHookCreateFromConf(config, "CTFPlayerShared::Heal");
+    //DHooks_CTFPlayerShared_Heal = DHookCreateFromConf(config, "CTFPlayerShared::Heal");
     DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect = DHookCreateFromConf(config, "CTFPlayerShared::CanRecieveMedigunChargeEffect");
-    DHooks_CTFPlayerShared_Disguise = DHookCreateFromConf(config, "CTFPlayerShared::Disguise");
-    DHooks_CTFPlayerShared_UpdateCloakMeter = DHookCreateFromConf(config, "CTFPlayerShared::UpdateCloakMeter");
     DHooks_CTFWeaponBaseMelee_OnSwingHit = DHookCreateFromConf(config, "CTFWeaponBaseMelee::OnSwingHit");
     DHooks_CTFMinigun_SharedAttack = DHookCreateFromConf(config, "CTFMinigun::SharedAttack");
     CTFWearable_CTFWearable_Break = DHookCreateFromConf(config, "CTFWearable::Break");
@@ -877,14 +898,11 @@ public void OnPluginStart()
     DHookEnableDetour(DHooks_CTFPlayer_OnTakeDamage_Alive, false, OnTakeDamageAlive);
     DHookEnableDetour(DHooks_CTFPlayerShared_AddCond, false, AddCondition);
     DHookEnableDetour(DHooks_CTFPlayerShared_RemoveCond, false, RemoveCondition);
-    DHookEnableDetour(DHooks_CTFPlayerShared_ModifyRage, false, ModifyRageMeter);
+    DHookEnableDetour(DHooks_CTFPlayerShared_SetRageMeter, false, ModifyRageMeter);
     DHookEnableDetour(DHooks_CTFPlayerShared_CalcChargeCrit, false, CalculateChargeCrit);
     DHookEnableDetour(DHooks_CTFPlayerShared_AddToSpyCloakMeter, false, AddToCloak);
-    DHookEnableDetour(DHooks_CTFPlayerShared_Heal, false, HealPlayer);
+    //DHookEnableDetour(DHooks_CTFPlayerShared_Heal, false, HealPlayer);
     DHookEnableDetour(DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect, false, CheckIfPlayerCanBeUbered);
-    DHookEnableDetour(DHooks_CTFPlayerShared_Disguise, true, DisguisePlayer);
-    DHookEnableDetour(DHooks_CTFPlayerShared_UpdateCloakMeter, false, PreUpdateCloakMeter);
-    DHookEnableDetour(DHooks_CTFPlayerShared_UpdateCloakMeter, true, PostUpdateCloakMeter);
     DHookEnableDetour(DHooks_CTFWeaponBaseMelee_OnSwingHit, false, OnMeleeSwingHit);
     DHookEnableDetour(DHooks_CTFMinigun_SharedAttack, false, OnMinigunSharedAttack);
     DHookEnableDetour(CTFWearable_CTFWearable_Break, true, BreakRazorback);
@@ -922,13 +940,11 @@ public void OnPluginStart()
     StartPrepSDKCall(SDKCall_Entity);
     PrepSDKCall_SetFromConf(config, SDKConf_Virtual, "CBaseObject::DetonateObject");
     SDKCall_CBaseObject_DetonateObject = EndPrepSDKCall();
+    StartPrepSDKCall(SDKCall_Entity);
+    PrepSDKCall_SetFromConf(config, SDKConf_Virtual, "CBaseObject::GetType");
+    PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+    SDKCall_CBaseObject_GetType = EndPrepSDKCall();
 
-    StartPrepSDKCall(SDKCall_Player);
-    PrepSDKCall_SetFromConf(config, SDKConf_Signature, "CTFPlayer::GetObjectOfType");
-    PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-    PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-    PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-    SDKCall_CTFPlayer_GetObjectOfType = EndPrepSDKCall();
     StartPrepSDKCall(SDKCall_Player);
     PrepSDKCall_SetFromConf(config, SDKConf_Signature, "CTFPlayer::TryToPickupBuilding");
     PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
@@ -952,9 +968,14 @@ public void OnPluginStart()
     SDKCall_CBaseObject_GetReversesBuildingConstructionSpeed = EndPrepSDKCall();
 
     // Memory patches.
+    /*
+    // This code is not accurate in retrospect to Smissmas 2014. You can uncomment this if you wish, but
+    // I cannot guarantee that the gamedata is accurate.
+
     MemoryPatch_ShieldTurnCap = GameConfGetAddress(config, "MemoryPatch_ShieldTurnCap") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_ShieldTurnCap"));
     MemoryPatch_ShieldTurnCap_OldValue = LoadFromAddress(MemoryPatch_ShieldTurnCap, NumberType_Int32);
     StoreToAddress(MemoryPatch_ShieldTurnCap, AddressOf(MemoryPatch_ShieldTurnCap_NewValue), NumberType_Int32);
+    */
 
     MemoryPatch_NormalScorchShotKnockback = GameConfGetAddress(config, "MemoryPatch_NormalScorchShotKnockback") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_NormalScorchShotKnockback"));
     MemoryPatch_NormalScorchShotKnockback_oldValue = LoadFromAddress(MemoryPatch_NormalScorchShotKnockback, NumberType_Int32);
@@ -964,9 +985,21 @@ public void OnPluginStart()
     MemoryPatch_DisableDebuffShortenWhilstCloaked_oldValue = LoadFromAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, NumberType_Int32);
     StoreToAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, AddressOf(MemoryPatch_DisableDebuffShortenWhilstCloaked_NewValue), NumberType_Int32);
 
+    MemoryPatch_FixYourEternalReward = GameConfGetAddress(config, "MemoryPatch_FixYourEternalReward") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_FixYourEternalReward"));
+    MemoryPatch_FixYourEternalReward_NOPCount = GameConfGetOffset(config, "MemoryPatch_FixYourEternalReward_NOPCount");
+    for (int i = 0; i < MemoryPatch_FixYourEternalReward_NOPCount; ++i)
+    {
+        Address index = view_as<Address>(i);
+        MemoryPatch_FixYourEternalReward_OldValue[i] = LoadFromAddress(MemoryPatch_FixYourEternalReward + view_as<Address>(index), NumberType_Int8);
+        StoreToAddress(MemoryPatch_FixYourEternalReward + index, MemoryPatch_FixYourEternalReward_NewValue[i], NumberType_Int8);
+    }
+
+    MemoryPatch_DisguiseIsAlways2Seconds = GameConfGetAddress(config, "MemoryPatch_DisguiseIsAlways2Seconds") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_DisguiseIsAlways2Seconds"));
+    MemoryPatch_DisguiseIsAlways2Seconds_OldValue = LoadFromAddress(MemoryPatch_DisguiseIsAlways2Seconds, NumberType_Int32);
+    StoreToAddress(MemoryPatch_DisguiseIsAlways2Seconds, AddressOf(MemoryPatch_DisguiseIsAlways2Seconds_NewValue), NumberType_Int32);
+
     // Offsets.
     CTFPlayerShared_m_pOuter = view_as<Address>(GameConfGetOffset(config, "CTFPlayerShared::m_pOuter"));
-    CTFPlayerShared_m_flDisguiseCompleteTime = view_as<Address>(GameConfGetOffset(config, "CTFPlayerShared::m_flDisguiseCompleteTime"));
     CGameTrace_m_pEnt = view_as<Address>(GameConfGetOffset(config, "CGameTrace::m_pEnt"));
     CTakeDamageInfo_m_hAttacker = view_as<Address>(40);
     CTakeDamageInfo_m_flDamage = view_as<Address>(48);
@@ -976,6 +1009,7 @@ public void OnPluginStart()
     CWeaponMedigun_m_bReloadDown = view_as<Address>(FindSendPropInfo("CWeaponMedigun", "m_nChargeResistType") + 11);
     CObjectSentrygun_m_flShieldFadeTime = view_as<Address>(FindSendPropInfo("CObjectSentrygun", "m_nShieldLevel") + 4);
     CObjectBase_m_flHealth = view_as<Address>(FindSendPropInfo("CBaseObject", "m_bHasSapper") - 4);
+    CTFPlayer_m_aObjects = view_as<Address>(FindSendPropInfo("CTFPlayer", "m_iClassModelParity") + 72);
 
     delete config;
 
@@ -1076,9 +1110,17 @@ public void OnPluginEnd()
     }
 
     // Memory patches.
+    /*
     StoreToAddress(MemoryPatch_ShieldTurnCap, MemoryPatch_ShieldTurnCap_OldValue, NumberType_Int32);
+    */
     StoreToAddress(MemoryPatch_NormalScorchShotKnockback, MemoryPatch_NormalScorchShotKnockback_oldValue, NumberType_Int32);
     StoreToAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, MemoryPatch_DisableDebuffShortenWhilstCloaked_oldValue, NumberType_Int32);
+    for (int i = 0; i < MemoryPatch_FixYourEternalReward_NOPCount; ++i)
+    {
+        Address index = view_as<Address>(i);
+        StoreToAddress(MemoryPatch_FixYourEternalReward + index, MemoryPatch_FixYourEternalReward_OldValue[i], NumberType_Int8);
+    }
+    StoreToAddress(MemoryPatch_DisguiseIsAlways2Seconds, MemoryPatch_DisguiseIsAlways2Seconds_OldValue, NumberType_Int32);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1097,7 +1139,7 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
  
     // Create a new item and change global attributes.
     newItem = TF2Items_CreateItem(OVERRIDE_ATTRIBUTES | PRESERVE_ATTRIBUTES);
-    TF2Items_SetAttribute(newItem, 0, 773, 1.34); // This weapon deploys 1.34% slower. 0.5s * 1.34 = 0.67s, nearly the same as pre-Tough Break switch speed.
+    TF2Items_SetAttribute(newItem, 0, 773, 1.34); // This weapon deploys 1.34% slower. 0.5s * 1.34 = 0.67s, the same as pre-Tough Break switch speed.
     TF2Items_SetNumAttributes(newItem, 1);
     OriginalTF2ItemsIndex = -1;
 
@@ -1812,10 +1854,10 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
 
                 TF2Items_SetNumAttributes(newItem, 2);
             }
-            else if (index == 57) // Razorback. TODO: remove razorback ui.
+            else if (index == 57) // Razorback.
             {
                 // Remove old attributes.
-                TF2Items_SetAttribute(newItem, 1, 853, 1.00); // -0% maximum overheal on wearer
+                TF2Items_SetAttribute(newItem, 1, 800, 1.00); // -0% maximum overheal on wearer
 
                 TF2Items_SetNumAttributes(newItem, 2);
             }
@@ -2103,19 +2145,8 @@ void StructuriseWeaponList(int client)
     }
 
     // Iterate through wearables.
-    // Uses a hybrid of both since either will not work sometimes.
-    for (int entity = MAXPLAYERS; entity < MAX_ENTITY_COUNT; ++entity)
-    {
-        if (IsValidEntity(entity))
-        {
-            char class[MAX_NAME_LENGTH]; // This function is also called on plugin start, so this is just to be safe.
-            GetEntityClassname(entity, class, MAX_NAME_LENGTH);
-            if (StrContains(class, "tf_wearable") != -1 && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
-                RegisterToWeaponList(client, entity);
-        }
-    }
     Address m_hMyWearables = GetEntityAddress(client) + view_as<Address>(FindSendPropInfo("CTFPlayer", "m_hMyWearables"));
-    for (int i = 0; i < Dereference(m_hMyWearables + view_as<Address>(12)); ++i)
+    for (int i = 0, size = Dereference(m_hMyWearables + view_as<Address>(12)); i < size; ++i)
     {
         int entity = LoadEntityHandleFromAddress(view_as<Address>(Dereference(m_hMyWearables) + i * 4));
         RegisterToWeaponList(client, entity);
@@ -2123,8 +2154,55 @@ void StructuriseWeaponList(int client)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+// OBJECTS                                                                  //
+//////////////////////////////////////////////////////////////////////////////
+
+bool IsDisposableBuilding(int obj)
+{
+    return view_as<bool>(GetEntProp(obj, Prop_Send, "m_bDisposableBuilding"));
+}
+
+int GetObjectMode(int obj)
+{
+    return GetEntProp(obj, Prop_Send, "m_iObjectMode");
+}
+
+int GetObjectCount(int client)
+{
+    return Dereference(GetEntityAddress(client) + CTFPlayer_m_aObjects + view_as<Address>(12));
+}
+
+int GetObject(int client, int index)
+{
+    return LoadEntityHandleFromAddress(Dereference(GetEntityAddress(client) + CTFPlayer_m_aObjects) + index * 4);
+}
+
+int GetObjectOfType(int client, int iObjectType, int iObjectMode)
+{
+    int iNumObjects = GetObjectCount(client);
+    for (int i = 0; i < iNumObjects; ++i)
+    {
+        int pObj = GetObject(client, i);
+        if (pObj == -1)
+            continue;
+
+        if (SDKCall(SDKCall_CBaseObject_GetType, pObj) != iObjectType)
+            continue;
+
+        if (GetObjectMode(pObj) != iObjectMode)
+            continue;
+        
+        if (IsDisposableBuilding(pObj))
+            continue;
+
+        return pObj;
+    }
+    return -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
 // WEAPON FUNCTIONALITY                                                     //
-//////////////////////////////////////////////////////////////////////////////w
+//////////////////////////////////////////////////////////////////////////////
 
 int GetWeaponIndex(int weapon)
 {
@@ -2170,18 +2248,21 @@ float ApplyRadiusDamage(int victim, float damageposition[3], float radius, float
 
 void DestroyAllBuildings(int client)
 {
-    for (ObjectType_t i = OBJ_DISPENSER; i < OBJ_LAST; ++i)
+    // TODO: REVISIT
+    /*
+    for (any i = OBJ_DISPENSER; i < OBJ_LAST; ++i)
     {
-        int building = SDKCall(SDKCall_CTFPlayer_GetObjectOfType, client, i, 0);
+        int building = GetObjectOfType(client, i, 0); // SDKCall(SDKCall_CTFPlayer_GetObjectOfType, client, i, 0);
         if (i == OBJ_TELEPORTER) // Destroy the exit as well.
         {
-            int exitTeleporter = SDKCall(SDKCall_CTFPlayer_GetObjectOfType, client, i, 1);
+            int exitTeleporter = GetObjectOfType(client, i, 1); // SDKCall(SDKCall_CTFPlayer_GetObjectOfType, client, i, 1);
             if (IsValidEntity(exitTeleporter))
                 SDKCall(SDKCall_CBaseObject_DetonateObject, exitTeleporter);
         }
         if (IsValidEntity(building))
             SDKCall(SDKCall_CBaseObject_DetonateObject, building);
     }
+    */
 }
 
 float GetBuildingConstructionMultiplier_NoHook(int entity)
@@ -2354,7 +2435,7 @@ public Action ClientDeath(Event event, const char[] name, bool dontBroadcast)
         int index = GetWeaponIndex(weapon);
         if (index == 140 || index == 1086 || index == 30668) // Make the player's sentry shield disappear in only one second.
         {
-            int sentry = SDKCall(SDKCall_CTFPlayer_GetObjectOfType, client, OBJ_SENTRYGUN, 0);
+            int sentry = GetObjectOfType(client, view_as<int>(OBJ_SENTRYGUN), 0); // SDKCall(SDKCall_CTFPlayer_GetObjectOfType, client, OBJ_SENTRYGUN, 0);
             if (IsValidEntity(sentry))
             {
                 Address m_flShieldFadeTime = GetEntityAddress(sentry) + CObjectSentrygun_m_flShieldFadeTime;
@@ -2441,10 +2522,11 @@ public void OnEntityCreated(int entity, const char[] class)
 {
     if (entity <= MaxClients)
         return;
+    allEntities[entity].OriginalTF2ItemsIndex = -1;
     allEntities[entity].SpawnTimestamp = GetGameTime();
     strcopy(allEntities[entity].Class, MAX_NAME_LENGTH, class);
 
-    if (HasEntProp(entity, Prop_Send, "m_iItemDefinitionIndex")) // Any wearable.
+    if (HasEntProp(entity, Prop_Send, "m_iItemDefinitionIndex")) // Any econ entity.
     {
         // Hooks.
         if (StrContains(class, "tf_weapon") == 0) // Hooks restricted to weapons only.
@@ -2470,9 +2552,8 @@ public void OnEntityCreated(int entity, const char[] class)
                 DHookEntity(DHooks_CWeaponMedigun_ItemPostFrame, false, entity, _, MedigunItemPostFrame);
             else if (StrEqual(class, "tf_weapon_sniperrifle_decap"))
                 DHookEntity(DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod, false, entity, _, GetBazaarBargainChargeRate);
-
-            allEntities[entity].OriginalTF2ItemsIndex = OriginalTF2ItemsIndex;
         }
+        allEntities[entity].OriginalTF2ItemsIndex = OriginalTF2ItemsIndex;
     }
     else if (StrEqual(class, "tf_projectile_ball_ornament"))
         DHookEntity(DHooks_CTFBall_Ornament_Explode, false, entity, _, OrnamentExplode);
@@ -2483,7 +2564,10 @@ public void OnEntityCreated(int entity, const char[] class)
         for (int i = 0; i <= MAXPLAYERS; ++i)
             allEntities[entity].ConstructionBoostExpiryTimes[i] = -1.0;
         SDKHook(entity, SDKHook_OnTakeDamage, BuildingDamaged);
-        DHookEntity(DHooks_CBaseObject_Command_Repair, false, entity, _, CommandRepair);
+
+        // TODO: REVISIT
+        //DHookEntity(DHooks_CBaseObject_Command_Repair, false, entity, _, CommandRepair);
+        
         if (StrEqual(class, "obj_sentrygun"))
         {
             DHookEntity(DHooks_CObjectSentrygun_OnWrenchHit, false, entity, _, PreSentryWrenchHit);
@@ -2907,6 +2991,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
 {
     Action returnValue = Plugin_Continue;
     int index = GetWeaponIndex(weapon);
+    int inflictorIndex = IsValidEntity(inflictor) && HasEntProp(inflictor, Prop_Send, "m_hLauncher") ? GetWeaponIndex(GetEntPropEnt(inflictor, Prop_Send, "m_hLauncher")) : -1;
     int victimActiveWeapon = GetEntPropEnt(victim, Prop_Send, "m_hActiveWeapon");
     allPlayers[victim].HealthBeforeKill = GetClientHealth(victim);
 
@@ -2916,77 +3001,81 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         returnValue = Plugin_Changed;
     }
 
+    // projectile-specific code
+    if (damagecustom == TF_CUSTOM_BASEBALL && GetWeaponIndex(inflictor) == 44) // Sandman stun. The majority of this is sourced from the TF2 source code leak.
+    {
+        damage = 15.00; // Force the damage to always be 15.
+        allPlayers[victim].TicksSinceProjectileEncounter = 0;
+        TF2_RemoveCondition(victim, TFCond_Dazed); // TF2_StunPlayer just sets TFCond_Dazed again anyway.
+
+        // We have a more intense stun based on our travel time.
+        float flLifeTime = min(GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp, FLIGHT_TIME_TO_MAX_STUN);
+        float flLifeTimeRatio = flLifeTime / FLIGHT_TIME_TO_MAX_STUN;
+        if (flLifeTimeRatio > 0.1)
+        {
+            float flStun = 0.5;
+            float flStunDuration = GetConVarFloat(tf_scout_stunball_base_duration) * flLifeTimeRatio;
+            if (damagetype & DMG_CRIT)
+                flStunDuration += 2.0; // Extra two seconds of effect time if we're a critical hit.
+            int iStunFlags = TF_STUN_LOSER_STATE | TF_STUN_MOVEMENT;
+            if (flLifeTimeRatio >= 1.0)
+            {
+                flStunDuration += 1.0;
+                iStunFlags = TF_STUN_CONTROLS;
+                iStunFlags |= TF_STUN_SPECIAL_SOUND;
+            }
+
+            // Adjust stun amount and flags if we're hitting a boss or scaled enemy
+            if (GameModeUsesMiniBosses() && (GetEntProp(victim, Prop_Send, "m_bIsMiniBoss") || GetEntPropFloat(victim, Prop_Send, "m_flModelScale") > 1.0))
+            {
+                // If max range, freeze them in place - otherwise adjust it based on distance
+                flStun = flLifeTimeRatio >= 1.0 ? 1.0 : RemapValClamped( flLifeTimeRatio, 0.1, 0.99, 0.5, 0.75 );
+                iStunFlags = flLifeTimeRatio >= 1.0 ? ( TF_STUN_SPECIAL_SOUND | TF_STUN_MOVEMENT ) : TF_STUN_MOVEMENT; 
+            }
+
+            if (GetEntProp(victim, Prop_Send, "m_nWaterLevel") != WL_Eyes)
+                TF2_StunPlayer(victim, flStunDuration, flStun, iStunFlags, attacker);
+        }
+
+        returnValue = Plugin_Changed;
+    }
+    else if (damagecustom == TF_CUSTOM_CANNONBALL_PUSH) // Loose Cannon ball.
+    {
+        damage = 60.00;
+        returnValue = Plugin_Changed;
+    }
+    else if ((damagecustom == TF_CUSTOM_CLEAVER || damagecustom == TF_CUSTOM_CLEAVER_CRIT) && allPlayers[victim].TicksSinceProjectileEncounter == GetGameTickCount() && GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp >= 1) // Flying Guillotine mini-crit.
+        TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION);
+    else if ((inflictorIndex == 228 || inflictorIndex == 1085) && attacker != victim && TF2_GetClientTeam(attacker) != TF2_GetClientTeam(victim)) // Black Box hit.
+    {
+        // Show that attacker got healed.
+        Handle event = CreateEvent("player_healonhit", true);
+        SetEventInt(event, "amount", 15);
+        SetEventInt(event, "entindex", attacker);
+        FireEvent(event);
+
+        // Set health.
+        SetEntityHealth(attacker, intMin(GetClientHealth(attacker) + 15, allPlayers[attacker].MaxHealth));
+    }
+
+    // weapon-specific code
     if (IsValidEntity(weapon)) 
     {
         if (index == 415 && GetEntityFlags(victim) & (FL_ONGROUND | FL_INWATER) == 0 && allPlayers[attacker].FramesSinceLastSwitch < TICK_RATE * 5) // Reserve Shooter mini-crit. This only works if it hasn't been 5 seconds since equipping the Reserve Shooter.
             TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION, inflictor);
-        if ((index == 228 || index == 1085) && attacker != victim) // Black Box hit.
-        {
-            // Show that attacker got healed.
-            Handle event = CreateEvent("player_healonhit", true);
-            SetEventInt(event, "amount", 15);
-            SetEventInt(event, "entindex", attacker);
-            FireEvent(event);
-
-            // Set health.
-            SetEntityHealth(attacker, intMin(GetClientHealth(attacker) + 15, allPlayers[attacker].MaxHealth));
-        }
+        if ((index == 228 || index == 1085) && attacker != victim && TF2_GetClientTeam(attacker) != TF2_GetClientTeam(victim)) // Black Box hit.
+        
         if (index == 127 && TF2_IsPlayerInCondition(victim, TFCond_BlastJumping)) // Direct Hit mini-crit on players thrown into air via explosion.
             TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION);
-        if (damagecustom == TF_CUSTOM_CANNONBALL_PUSH) // Loose Cannon ball.
-        {
-            damage = 60.00;
-            returnValue = Plugin_Changed;
-        }
         if (allPlayers[victim].TicksSinceHeadshot == GetGameTickCount() && (index == 61 || index == 1006)) // Ambassador headshot. TODO:
         {
-            // Although "damagetype |= DMG_USE_HITLOCATIONS" should work fine, ever since Jungle Inferno, this was changed to only actually crit within a specific range (0-1200 HU).
+            // You'd think that "damagetype |= DMG_USE_HITLOCATIONS" should work fine, but ever since Jungle Inferno, this was changed to only actually crit within a specific range (0-1200 HU).
             damagetype |= DMG_CRIT;
             returnValue = Plugin_Changed;
         }
         if (index == 460 && !TF2_IsPlayerInCondition(attacker, TFCond_Disguised)) // Enforcer 20% damage bonus while undisguised.
         {
             damage *= 1.20;
-            returnValue = Plugin_Changed;
-        }
-        if ((index == 812 || index == 833) && allPlayers[victim].TicksSinceProjectileEncounter == GetGameTickCount() && GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp >= 1) // Flying Guillotine mini-crit.
-            // mini-crit
-            TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION);
-        if (damagecustom == TF_CUSTOM_BASEBALL && index == 44) // Sandman stun. The majority of this is sourced from the TF2 source code leak.
-        {
-            damage = 15.00; // Force the damage to always be 15.
-            allPlayers[victim].TicksSinceProjectileEncounter = 0;
-            TF2_RemoveCondition(victim, TFCond_Dazed); // TF2_StunPlayer just sets TFCond_Dazed again anyway.
-
-            // We have a more intense stun based on our travel time.
-            float flLifeTime = min(GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp, FLIGHT_TIME_TO_MAX_STUN);
-            float flLifeTimeRatio = flLifeTime / FLIGHT_TIME_TO_MAX_STUN;
-            if (flLifeTimeRatio > 0.1)
-            {
-                float flStun = 0.5;
-                float flStunDuration = GetConVarFloat(tf_scout_stunball_base_duration) * flLifeTimeRatio;
-                if (damagetype & DMG_CRIT)
-                    flStunDuration += 2.0; // Extra two seconds of effect time if we're a critical hit.
-                int iStunFlags = TF_STUN_LOSER_STATE | TF_STUN_MOVEMENT;
-                if (flLifeTimeRatio >= 1.0)
-                {
-                    flStunDuration += 1.0;
-                    iStunFlags = TF_STUN_CONTROLS;
-                    iStunFlags |= TF_STUN_SPECIAL_SOUND;
-                }
-
-                // Adjust stun amount and flags if we're hitting a boss or scaled enemy
-                if (GameModeUsesMiniBosses() && (GetEntProp(victim, Prop_Send, "m_bIsMiniBoss") || GetEntPropFloat(victim, Prop_Send, "m_flModelScale") > 1.0))
-                {
-                    // If max range, freeze them in place - otherwise adjust it based on distance
-                    flStun = flLifeTimeRatio >= 1.0 ? 1.0 : RemapValClamped( flLifeTimeRatio, 0.1, 0.99, 0.5, 0.75 );
-                    iStunFlags = flLifeTimeRatio >= 1.0 ? ( TF_STUN_SPECIAL_SOUND | TF_STUN_MOVEMENT ) : TF_STUN_MOVEMENT; 
-                }
-
-                if (GetEntProp(victim, Prop_Send, "m_nWaterLevel") != WL_Eyes)
-                    TF2_StunPlayer(victim, flStunDuration, flStun, iStunFlags, attacker);
-            }
-
             returnValue = Plugin_Changed;
         }
         if (index == 442) // Righteous Bison damage. I doubt this is exact but it's still pretty accurate as far as I'm aware.
@@ -3300,7 +3389,7 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
                 RequestFrame(RewardChargeOnChargeKill, attacker);
             if (index == 357) // Half-Zatoichi kill.
                 SetEntityHealth(attacker, allPlayers[attacker].MaxHealth);
-            if (index == 402 && TF2_IsPlayerInCondition(attacker, TFCond_Slowed)) // Do not gain two heads in one time. I don't wanna make yet another DHook so I'll just make this instead.
+            if (index == 402 && TF2_IsPlayerInCondition(attacker, TFCond_Slowed) && allPlayers[attacker].BazaarBargainShot == BazaarBargain_Gain) // Bazaar Bargain: do not gain two heads in one time. I don't wanna make yet another DHook so I'll just make this instead.
                 SetEntProp(attacker, Prop_Send, "m_iDecapitations", GetEntProp(attacker, Prop_Send, "m_iDecapitations") - 1);
         }
         if (index == 237 || index == 265) // Stop the Rocket Jumper/Sticky Jumper from damaging yourself.
@@ -3442,7 +3531,7 @@ MRESReturn WeaponPrimaryFire(int entity)
     }
     else if (index == 402 && TF2_IsPlayerInCondition(owner, TFCond_Slowed)) // Bazaar Bargain head counter: lose a head.
         allPlayers[owner].BazaarBargainShot = BazaarBargain_Lose;
-    allPlayers[owner].TicksSincePrimaryAttack = GetGameTickCount();
+    allPlayers[owner].TicksSinceAttack = GetGameTickCount();
     return MRES_Ignored;
 }
 
@@ -3464,6 +3553,7 @@ MRESReturn WeaponSecondaryFire(int entity)
         allPlayers[owner].VaccinatorCharge = float(RoundToFloor(GetEntPropFloat(entity, Prop_Send, "m_flChargeLevel") * 4)) / 4;
         allPlayers[owner].EndVaccinatorChargeFalloff = allPlayers[owner].VaccinatorCharge - 0.25;
     }
+    allPlayers[owner].TicksSinceAttack = GetGameTickCount();
     return MRES_Ignored;
 }
 
@@ -3490,6 +3580,7 @@ MRESReturn GetMinigunDamage(int entity, DHookReturn returnValue)
 MRESReturn GetBazaarBargainChargeRate(int entity, DHookReturn returnValue)
 {
     // I am not entirely sure whether this is correct or not. Might consider installing SourceMod on one of my older builds of TF2.
+    // Change the recharge rate for the Bazaar Bargain.
     returnValue.Value = 0.2 * (intMin(GetEntProp(allEntities[entity].Owner, Prop_Send, "m_iDecapitations"), MAX_HEAD_BONUS) - 1) * TF_WEAPON_SNIPERRIFLE_CHARGE_PER_SEC;
     return MRES_Supercede;
 }
@@ -3760,7 +3851,7 @@ MRESReturn AddCondition(Address thisPointer, DHookParam parameters)
 {
     int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
     TFCond condition = parameters.Get(1);
-    if (condition == TFCond_MarkedForDeathSilent && TF2_IsPlayerInCondition(client, TFCond_CritCola) && allPlayers[client].TicksSincePrimaryAttack == GetGameTickCount()) // Do not mark the player for death when using Crit-a-Cola.
+    if (condition == TFCond_MarkedForDeathSilent && TF2_IsPlayerInCondition(client, TFCond_CritCola) && allPlayers[client].TicksSinceAttack == GetGameTickCount()) // Do not mark the player for death when using Crit-a-Cola.
         return MRES_Supercede;
     else if ((condition == TFCond_UberchargedCanteen || condition == TFCond_MegaHeal) && allPlayers[client].TicksSinceMmmphUsage == GetGameTickCount()) // Phlog invulnerability/knockback prevention.
         return MRES_Supercede;
@@ -3850,6 +3941,8 @@ MRESReturn AddToCloak(Address thisPointer, DHookReturn returnValue, DHookParam p
     return MRES_Ignored;
 }
 
+// TODO - REVISIT PLEASE!
+/*
 MRESReturn HealPlayer(Address thisPointer, DHookParam parameters)
 {
     int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
@@ -3861,6 +3954,7 @@ MRESReturn HealPlayer(Address thisPointer, DHookParam parameters)
     }
     return MRES_Ignored;
 }
+*/
 
 MRESReturn CheckIfPlayerCanBeUbered(Address thisPointer, DHookReturn returnValue, DHookParam parameters)
 {
@@ -3869,34 +3963,14 @@ MRESReturn CheckIfPlayerCanBeUbered(Address thisPointer, DHookReturn returnValue
     return MRES_Supercede;
 }
 
-MRESReturn DisguisePlayer(Address thisPointer, DHookParam parameters)
-{
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
-    SetEntProp(client, Prop_Send, "m_nDesiredDisguiseTeam", TF2_GetClientTeam(client) == TFTeam_Red ? TFTeam_Blue : TFTeam_Red); // Only get the player to disguise as the enemy team. Can't change it client-side :c
-    WriteToValue(thisPointer + CTFPlayerShared_m_flDisguiseCompleteTime, GetGameTime() + 2.0); // Disguise time must always be 2 seconds.
-    return MRES_Ignored;
-}
-
-MRESReturn PreUpdateCloakMeter(Address thisPointer)
-{
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
-    allPlayers[client].UpdatingCloakMeter = true;
-    return MRES_Ignored;
-}
-
-MRESReturn PostUpdateCloakMeter(Address thisPointer)
-{
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
-    allPlayers[client].UpdatingCloakMeter = false;
-    return MRES_Ignored;
-}
-
 MRESReturn ModifyRageMeter(Address thisPointer, DHookParam parameters)
 {
     int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
-    if (TF2_GetPlayerClass(client) == TFClass_Pyro)
+    if (TF2_GetPlayerClass(client) == TFClass_Pyro && DoesPlayerHaveItem(client, 594))
     {
-        parameters.Set(1, view_as<float>(parameters.Get(1)) * (300.00 / 225.00)); // Take only 225 damage to build up the Phlog rage meter. This is hacky but it's simple, at least.
+        float delta = view_as<float>(parameters.Get(1));
+        delta *= (300.00 / 225.00); // Take only 225 damage to build up the Phlog rage meter. This is hacky but it's simple, at least.
+        parameters.Set(1, delta);
         return MRES_ChangedHandled;
     }
     return MRES_Ignored;
@@ -4097,7 +4171,7 @@ MRESReturn ApplyDamageRules(Address thisPointer, DHookReturn returnValue, DHookP
     if (victim > 0 && victim <= MaxClients)
     {
         Address info = parameters.Get(1);
-        int bitsDamageType = Dereference(info + CTakeDamageInfo_m_bitsDamageType); // TODO: MAKE SURE THIS WORKS?
+        int bitsDamageType = Dereference(info + CTakeDamageInfo_m_bitsDamageType);
         for (int i = 1; i <= MaxClients; ++i)
         {
             if (allPlayers[victim].VaccinatorHealers[i] && bitsDamageType & resistanceMapping[GetResistType(DoesPlayerHaveItem(i, 998))])

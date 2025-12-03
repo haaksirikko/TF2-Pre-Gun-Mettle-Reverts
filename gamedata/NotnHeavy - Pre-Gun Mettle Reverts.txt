@@ -37,10 +37,32 @@
 					"signature" "CTFPlayerShared::UpdateCloakMeter"
 				}
 			}
+			"MemoryPatch_FixYourEternalReward"
+			{
+				"windows"
+				{
+					"signature" "CTFPlayer::DisguiseOnKill"
+				}
+				"linux"
+				{
+					"signature" "CTFPlayer::DisguiseOnKill"
+				}
+			}
+			"MemoryPatch_DisguiseIsAlways2Seconds"
+			{
+				"windows"
+				{
+					"signature" "CTFPlayerShared::Disguise"
+				}
+				"linux"
+				{
+					"signature" "CTFPlayerShared::Disguise"
+				}
+			}
 		}
 		"Signatures"
 		{
-			"CTFPlayerMove::SetupMove"
+			"CTFPlayerMove::SetupMove" // look in CTFPlayerMove vtable
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x83\xEC\x10\x56\x8B\x75\x08\x89\x4D\xFC"
@@ -63,7 +85,7 @@
 			"CTFProjectile_Flare::Explode"
 			{
 				"library" "server"
-				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\x58\x01\x00\x00\x56\x57\x8B\xF9\x8B\x87\x3C\x01\x00\x00" // xrefs to string "Rubber.BulletImpact"
+				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\x68\x01\x00\x00\x56\x57\x8B\xF9\x8B\x87\x3C\x01\x00\x00\xC1\xE8\x0B\xA8\x01\x74\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x87\xB8\x02\x00\x00" // xrefs to string "Rubber.BulletImpact"
 				"linux"   "@_ZN19CTFProjectile_Flare7ExplodeEP10CGameTraceP11CBaseEntity"
 			}
 
@@ -76,52 +98,52 @@
 			"CTFPlayer::TeamFortress_CalculateMaxSpeed"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x18\x83\x3D\x2A\x2A\x2A\x2A\x00"
+				"windows" "\x55\x8B\xEC\x83\xEC\x18\x56\x8B\xF1\x8B\x0D\x2A\x2A\x2A\x2A" //  offset aMultPlayerAimi ; "mult_player_aiming_movespeed"
 				"linux"	  "@_ZNK9CTFPlayer30TeamFortress_CalculateMaxSpeedEb"
 			}
 			"CTFPlayer::CanAirDash" // offset aSetScoutDouble ; "set_scout_doublejump_disabled"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x08\x57\x8B\xF9\xF7\x87\xB4\x1B\x00\x00\x00\x00\x04\x00"
+				"windows" "\x55\x8B\xEC\x83\xEC\x08\x53\x57\x8B\xF9\x8B\x87\xB4\x1B\x00\x00"
 				"linux"   "@_ZNK9CTFPlayer10CanAirDashEv"
 			}
-			"CTFPlayer::Taunt"
+			"CTFPlayer::Taunt" // offset aCosmeticTauntS ; "cosmetic_taunt_sound"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x81\xEC\xD4\x00\x00\x00\x53\x56"
+				"windows" "\x55\x8B\xEC\x81\xEC\xD4\x00\x00\x00\x53\x56\x57\x8B\xF9\xE8\x2A\x2A\x2A\x2A"
 				"linux"   "@_ZN9CTFPlayer5TauntE8taunts_ti"
 			}
-			"CTFPlayer::GetObjectOfType"
+			"CTFPlayer::GetObjectOfType" // offset aMultDmgBulletV ; "mult_dmg_bullet_vs_sentry_target", two function calls down - just above dynamic cast
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x51\x53\x8B\xC1\x56\x57\x33\xFF\x89\x45\xFC\x8B\x98\x8C\x21\x00\x00"
+				"windows" "\x55\x8B\xEC\x51\x53\x8B\xC1\x56\x57\x33\xFF\x89\x45\xFC\x8B\x98\x44\x23\x00\x00"
 				"linux"   "@_ZNK9CTFPlayer15GetObjectOfTypeEii"
 			}
 			"CTFPlayer::TryToPickupBuilding"
 			{
 				"library" "server"
-				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\x78\x01\x00\x00\x56\x57\x8B\xF9\x80\xBF\x38\x1D\x00\x00\x00"
+				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\xF8\x01\x00\x00\x56\x57\x8B\xF9\x80\xBF\xEC\x1E\x00\x00\x00" // offset aCannotPickUpBu ; "cannot_pick_up_buildings"
 				"linux"   "@_ZN9CTFPlayer19TryToPickupBuildingEv"
 			}
-			"CTFPlayer::RegenThink"
+			"CTFPlayer::RegenThink" // offset aAddHealthRegen ; "add_health_regen"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x74\x57\x8B\xF9\x8B\x07"
+				"windows" "\x55\x8B\xEC\x83\xEC\x7C\x56\x8B\xF1"
 				"linux"   "@_ZN9CTFPlayer10RegenThinkEv"
 			}
-			"CTFPlayer::MedicGetHealTarget"
+			"CTFPlayer::MedicGetHealTarget" // offset aFetchingLostFl ; "Fetching lost flag...", 3 calls up
 			{
 				"library" "server"
 				"windows" "\x56\x6A\x05\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84\xC0\x74\x2A\x6A\x00"
 				"linux"   "@_ZN9CTFPlayer18MedicGetHealTargetEv"
 			}
-			"CTFPlayer::ApplyPunchImpulseX"
+			"CTFPlayer::ApplyPunchImpulseX" // offset aAimingNoFlinch ; "aiming_no_flinch"
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x53\x56\x8B\xF1\xB3\x01"
 				"linux"   "@_ZN9CTFPlayer18ApplyPunchImpulseXEf"
 			}
-			"CTFPlayer::AddToSpyKnife"
+			"CTFPlayer::AddToSpyKnife" // offset aAmmoGivesCharg ; "ammo_gives_charge", either subroutine is fine, call above
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x6A\x07"
@@ -130,8 +152,14 @@
 			"CTFPlayer::OnTakeDamage_Alive"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x2A\x56\x57\x8B\xF9\x8B\x0D\x2A\x2A\x2A\x2A\x89\x7D\x2A"
+				"windows" "\x55\x8B\xEC\x81\xEC\x80\x01\x00\x00\x56" // offset aBleedingDurati ; "bleeding_duration"
 				"linux"   "@_ZN9CTFPlayer18OnTakeDamage_AliveERK15CTakeDamageInfo"
+			}
+			"CTFPlayer::DisguiseOnKill"
+			{
+				"library" "server"
+				"windows" "\x55\x8B\xEC\x51\x56\x8B\xF1\x8B\x96\x28\x08\x00\x00" // offset aDisguiseonkill ; "DisguiseOnKill", scroll down a bit and find "push offset sub_xxxxxxxx".
+				"linux"   "@_ZN8CTFKnife14DisguiseOnKillEv"
 			}
 
 			"CTFPlayerShared::AddCond" // offset aJarateBackstab ; "jarate_backstabber", go to call that looks like AddCond (last time checked, 2nd from offset)
@@ -140,46 +168,35 @@
 				"windows" "\x55\x8B\xEC\x83\xEC\x08\x56\x8B\xF1\x8B\x8E\x8C\x01\x00\x00\x85\xC9"
 				"linux"   "@_ZN15CTFPlayerShared7AddCondE7ETFCondfP11CBaseEntity"
 			}
-			"CTFPlayerShared::RemoveCond"
+			"CTFPlayerShared::RemoveCond" // offset aDamagePrevente ; "damage_prevented"
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x83\xEC\x08\x53\x8B\x5D\x08\x56\x53"
 				"linux"   "@_ZN15CTFPlayerShared10RemoveCondE7ETFCondb"
 			}
-			"CTFPlayerShared::InCond"
+			// "CTFPlayerShared::ModifyRage"
+			"CTFPlayerShared::SetRageMeter" // aRageOnHit "rage_on_hit", go to subroutine call after SIMD instruction ~~go to subroutine (2nd line down previously) that is just a one-liner func call~~
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x08\x56\x57\x8B\x7D\x08\x8B\xF1\x83\xFF\x20"
-				"linux"   "@_ZNK15CTFPlayerShared6InCondE7ETFCond"
+				"windows" "\x55\x8B\xEC\xF3\x0F\x10\x45\x08\x83\xEC\x08"
+				"linux"	  "@_ZN15CTFPlayerShared12SetRageMeterEf"
 			}
-			"CTFPlayerShared::ModifyRage" // aRageOnHit "rage_on_hit", go to subroutine (2nd line down previously) that is just a one-liner func call
+			"CTFPlayerShared::CalcChargeCrit" // offset aLoseDemoCharge ; "lose_demo_charge_on_damage_when_chargin"..., function is NOT ontakedamage, doesn't have incond call either
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\xF3\x0F\x10\x81\x88\x02\x00\x00"
-				"linux"	  "@_ZN15CTFPlayerShared10ModifyRageEf"
-			}
-			"CTFPlayerShared::CalcChargeCrit"
-			{
-				"library" "server"
-				"windows" "\x55\x8B\xEC\x56\x57\x6A\x01\x8B\xF1\x6A\x00"
+				"windows" "\x55\x8B\xEC\x83\xEC\x0C\x53\x56\x57\x8B\xF1\x6A\x01"
 				"linux"   "@_ZN15CTFPlayerShared14CalcChargeCritEb"
 			}
-			"CTFPlayerShared::AddToSpyCloakMeter"
+			"CTFPlayerShared::AddToSpyCloakMeter" // offset aModCloakNoRege ; "mod_cloak_no_regen_from_items"
 			{
 				"library" "server"
 				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x83\xEC\x28\x56\x57\x8B\xF9\x6A\x39"
 				"linux"   "@_ZN15CTFPlayerShared18AddToSpyCloakMeterEfb"
 			}
-			"CTFPlayerShared::Heal"
-			{
-				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x28\x53\x56\x8B\x75\x08\x0F\x57\xC0"
-				"linux"   "@_ZN15CTFPlayerShared4HealEP11CBaseEntityfffbP9CTFPlayer"
-			}
 			"CTFPlayerShared::CanRecieveMedigunChargeEffect"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x53\x56\x57\x8B\xF9\xB3\x01" // some functions are a literal nuisance to find i swear
+				"windows" "\x55\x8B\xEC\x83\xEC\x38\x53\x56\x57\x8B\xF9\xC7\x45\xCC\x00\x00\x00\x00" // some functions are a literal nuisance to find i swear
 				"linux"   "@_ZNK15CTFPlayerShared29CanRecieveMedigunChargeEffectE20medigun_charge_types"
 			}
 			"CTFPlayerShared::Disguise" // offset aModDisguiseCon ; "mod_disguise_consumes_cloak"
@@ -191,18 +208,18 @@
 			"CTFPlayerShared::UpdateCloakMeter"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x18\x56\x8B\xF1\x6A\x08" // i had to go through like 5 functions for this. turns out each function was the first call in each other LOL (aHypeDecaysOver db 'hype_decays_over_time')
-				"linux"   "@_ZN15CTFPlayerShared16UpdateCloakMeterEv"
+				"windows" "\x55\x8B\xEC\x83\xEC\x24\x56\x8B\xF1\x6A\x08" // i had to go through like 5 functions for this. turns out each function was the first call in each other LOL (aHypeDecaysOver db 'hype_decays_over_time')
+				"linux"   "@_ZN15CTFPlayerShared16UpdateCloakMeterEv.part.0"
 			}
 
-			"CTFWeaponBaseMelee::OnSwingHit"
+			"CTFWeaponBaseMelee::OnSwingHit" // offset aTaggedPlayerAs ; "tagged_player_as_it"
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x81\xEC\x50\x01\x00\x00\x53\x56\x57\x8B\xD9"
 				"linux"   "@_ZN18CTFWeaponBaseMelee10OnSwingHitER10CGameTrace"
 			}
 
-			"CTFWrench::GetConstructionValue"
+			"CTFWrench::GetConstructionValue" // offset aMultConstructi ; "mult_construction_value"
 			{
 				"library" "server"
 				"windows" "\xA1\x2A\x2A\x2A\x2A\x6A\x01\x6A\x00\x51"
@@ -213,7 +230,6 @@
 			{
 				"library" "server"
 				// get a load of this guy
-				//"windows" "\x55\x8B\xEC\x83\xEC\x20\x56\x8B\xF1\x8B\x86\x14\x01\x00\x00\xC1\xE8\x0B\xA8\x01\x74\x2A\xE8\x2A\x2A\x2A\x2A\x57\x8D\x4D\xE0\xE8\x2A\x2A\x2A\x2A\x8D\xBE\x90\x02\x00\x00\xC7\x45\xE0\x2A\x2A\x2A\x2A\x57\x8D\x4D\xE0\xE8\x2A\x2A\x2A\x2A\x8D\x45\xE0\x68\x2A\x2A\x2A\x2A\x50\xE8\x2A\x2A\x2A\x2A\x8B\x06\x83\xC4\x08\x8B\xCE\xFF\x50\x18\x50\xE8\x2A\x2A\x2A\x2A\x8B\x86\x14\x01\x00\x00\x83\xC4\x04\xC1\xE8\x0B\xA8\x01\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x57\xE8\x2A\x2A\x2A\x2A\x8B\x86\x14\x01\x00\x00\x83\xC4\x04\xC1\xE8\x0B\x5F\xA8\x01\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8D\x86\x0C\x03\x00\x00\x50\xE8\x2A\x2A\x2A\x2A\x8B\x06"
 				"windows" "\x55\x8B\xEC\x83\xEC\x20\x56\x8B\xF1\x8B\x86\x3C\x01\x00\x00\xC1\xE8\x0B\xA8\x01\x74\x2A\xE8\x2A\x2A\x2A\x2A\x57\x8D\x4D\xE0\xE8\x2A\x2A\x2A\x2A\x8D\xBE\xB8\x02\x00\x00\xC7\x45\xE0\x2A\x2A\x2A\x2A\x57\x8D\x4D\xE0\xE8\x2A\x2A\x2A\x2A\x8D\x45\xE0\x68\x2A\x2A\x2A\x2A\x50\xE8\x2A\x2A\x2A\x2A\x8B\x06\x83\xC4\x08\x8B\xCE\xFF\x50\x18\x50\xE8\x2A\x2A\x2A\x2A\x8B\x86\x3C\x01\x00\x00\x83\xC4\x04\xC1\xE8\x0B\xA8\x01\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x57\xE8\x2A\x2A\x2A\x2A\x8B\x86\x3C\x01\x00\x00\x83\xC4\x04\xC1\xE8\x0B\x5F\xA8\x01\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8D\x86\x34\x03\x00\x00\x50\xE8\x2A\x2A\x2A\x2A\x8B\x06"
 				"linux"   "@_ZN11CTFWearable5BreakEv"
 			}
@@ -221,93 +237,93 @@
 			"CTFWearableDemoShield::ShieldBash" /// offset aDemochargeHitf_0 ; "DemoCharge.HitFleshRange", not the precache function
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x81\xEC\xFC\x00\x00\x00\x57\x8B\xF9\x8B\x97\x10\x02\x00\x00"
+				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\x28\x01\x00\x00\x56\x57\x8B\xF9\x8B\x8F\x10\x02\x00\x00\x85\xC9\x0F\x84\x2A\x2A\x2A\x2A\xBA\xFF\x1F\x00\x00\x83\xF9\xFF\x74\x2A\x0F\xB7\xD1\x8B\x35\x2A\x2A\x2A\x2A\xC1\xE2\x04\x83\xC6\x04\x03\xF2\x0F\x84\x2A\x2A\x2A\x2A\xC1\xE9\x10\x39\x4E\x04\x0F\x85\x2A\x2A\x2A\x2A\x8B\x36\x85\xF6"
 				"linux"   "@_ZN21CTFWearableDemoShield10ShieldBashEP9CTFPlayerf"
 			}
 
-			"CTFAmmoPack::PackTouch"
+			"CTFAmmoPack::PackTouch" // unironically, look up the symbol LOL
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x83\xEC\x1C\x53\x8B\x5D\x08\x56"
 				"linux"   "@_ZN11CTFAmmoPack9PackTouchEP11CBaseEntity"
 			}
 
-			"CTFWeaponBaseGun::GetWeaponSpread"
+			"CTFWeaponBaseGun::GetWeaponSpread" // offset aMultSpreadScal_0 ; "mult_spread_scale"
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x83\xEC\x08\x56\x8B\xF1\x57\x6A\x01\x6A\x00"
 				"linux"   "@_ZN16CTFWeaponBaseGun15GetWeaponSpreadEv"
 			}
-			"CTFWeaponBaseGun::GetProjectileDamage"
+			"CTFWeaponBaseGun::GetProjectileDamage" // offset aRageDamage ; "rage_damage"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x1C\x53\x56\x8B\xD9\x57"
+				"windows" "\x55\x8B\xEC\x83\xEC\x20\x53\x56\x8B\xD9\x57\x89\x5D\xE8"
 				"linux"   "@_ZN16CTFWeaponBaseGun19GetProjectileDamageEv"
 			}
 
-			"CTFMinigun::SharedAttack"
+			"CTFMinigun::SharedAttack" // offset aUsesAmmoWhileA ; "uses_ammo_while_aiming"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x10\x53\x57\x8B\xF9"
+				"windows" "\x55\x8B\xEC\x83\xEC\x30\x53\x57\x8B\xF9\xE8\x2A\x2A\x2A\x2A"
 				"linux"    "@_ZN10CTFMinigun12SharedAttackEv"
 			}
 
-			"CTFLunchBox::ApplyBiteEffects"
+			"CTFLunchBox::ApplyBiteEffects" // offset aLunchboxHealin ; "lunchbox_healing_scale"
 			{
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x51\x53\x8B\xD9\x56\x57\x6A\x01"
 				"linux"   "@_ZN11CTFLunchBox16ApplyBiteEffectsEP9CTFPlayer"
 			}
-			"CTFLunchBox::DrainAmmo" // this was actually ridiculous to find for windows lol
+			"CTFLunchBox::DrainAmmo" // xref to ??_R0?AVCTFLunchBox@@@8, find function that doesn't have a bunch of strings following, and just get lucky i guess?
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x51\x53\x57\x8B\xD9\xE8\x2A\x2A\x2A\x2A\x8B\xF8\x85\xFF"
+				"windows" "\x55\x8B\xEC\x56\x57\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xF0\x85\xF6\x0F\x84\x2A\x2A\x2A\x2A"
 				"linux"   "@_ZN11CTFLunchBox9DrainAmmoEb"
 			}
 
-			"CWeaponMedigun::FindAndHealTargets"
+			"CWeaponMedigun::FindAndHealTargets" // offset aMultMedigunUbe ; "mult_medigun_uberchargerate"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x28\x53\x57\x8B\xF9"
+				"windows" "\x55\x8B\xEC\x83\xEC\x24\x53\x56\x8B\xF1\x8B\x8E\x10\x02\x00\x00"
 				"linux"   "@_ZN14CWeaponMedigun18FindAndHealTargetsEv"
 			}
 
-			"CBaseObject::OnConstructionHit"
+			"CBaseObject::OnConstructionHit" // offset aNutsnboltsBuil ; "nutsnbolts_build", don't use precache subroutine
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x34\x8B\x45\x08\x53\x56"
+				"windows" "\x55\x8B\xEC\x83\xEC\x48\x8B\x45\x08\x53"
 				"linux"   "@_ZN11CBaseObject17OnConstructionHitEP9CTFPlayerP9CTFWrench6Vector"
 			}
-			"CBaseObject::GetConstructionMultiplier"
+			"CBaseObject::GetConstructionMultiplier" // offset aTeleporterBuil ; "teleporter_build_rate_multiplier", xref to this
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x0C\x53\x8B\xD9\x89\x5D\xF8"
+				"windows" "\x55\x8B\xEC\x83\xEC\x0C\x56\x8B\xF1\x89\x75\xF4\xE8\x2A\x2A\x2A\x2A\x85\xC0"
 				"linux"   "@_ZN11CBaseObject25GetConstructionMultiplierEv"
 			}
-			"CBaseObject::GetReversesBuildingConstructionSpeed"
+			"CBaseObject::GetReversesBuildingConstructionSpeed" // offset aBuildingSentry_13 ; "Building_Sentrygun.Disabled", first function call in subroutine
 			{
 				"library" "server"
-				"windows" "\x80\xB9\x20\x0A\x00\x00\x00\x74\x2A"
+				"windows" "\xE8\x2A\x2A\x2A\x2A\x85\xC0\x75\x2A\xD9\xEE\xC3" // offset aBuildingSentry_6 ; "Building_Sentrygun.Idle3", go to one that isn't precache, get first function call
 				"linux"   "@_ZN11CBaseObject36GetReversesBuildingConstructionSpeedEv"
 			}
 			"CBaseObject::CreateAmmoPack" // offset aModelsWeaponsW_11 ; "models/weapons/w_models/w_toolbox.mdl", not in pre-cache, first func call below
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x24\x56\x57\x8B\xF9\x8B\x87\x3C\x01\x00\x00"
+				"windows" "\x55\x8B\xEC\x83\xEC\x2C\x56\x57\x8B\xF9\x8B\x87\x3C\x01\x00\x00"
 				"linux"   "@_ZN11CBaseObject14CreateAmmoPackEPKci"
 			}
 
-			"CTFProjectile_Arrow::BuildingHealingArrow"
+			"CTFProjectile_Arrow::BuildingHealingArrow" // offset aArrowHealsBuil ; "arrow_heals_buildings"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x24\x53\x8B\x5D\x08\x56\x8B\xF1"
+				"windows" "\x55\x8B\xEC\x83\xEC\x24\x53\x56\x57\x8B\x7D\x08\x8B\xD9\x57"
 				"linux"   "@_ZN19CTFProjectile_Arrow20BuildingHealingArrowEP11CBaseEntity"
 			}
 
-			"CTFGameRules::ApplyOnDamageModifyRules"
+			"CTFGameRules::ApplyOnDamageModifyRules" // offset aOrCritVsPlayer ; "or_crit_vs_playercond"
 			{
 				"library" "server"
-				"windows" "\x55\x8B\xEC\x81\xEC\xAC\x00\x00\x00\x56\x8B\x75\x0C"
+				"windows" "\x55\x8B\xEC\x81\xEC\x90\x00\x00\x00\x56\x8B\x75\x0C"
 				"linux"	  "@_ZN12CTFGameRules24ApplyOnDamageModifyRulesER15CTakeDamageInfoP11CBaseEntityb"
 			}
 		}
@@ -315,20 +331,37 @@
 		{
 			"MemoryPatch_ShieldTurnCap"
 			{
-				"windows" "139"
-				"linux"   "140"
+				"windows" "150"
+				"linux"   "240"
 			}
 
 			"MemoryPatch_NormalScorchShotKnockback"
 			{
-				"windows" "763"
-				"linux"   "5244"
+				"windows" "771"
+				"linux"   "3372"
 			}
 
 			"MemoryPatch_DisableDebuffShortenWhilstCloaked"
 			{
-				"windows" "767"
-				"linux"   "295"
+				"windows" "899"
+				"linux"   "187"
+			}
+
+			"MemoryPatch_FixYourEternalReward"
+			{
+				"windows" "111" // find CTFPlayer::CanDisguise() with offset aSetCannotDisgu ; "set_cannot_disguise" (SMALLER FUNCTION), set name of it, patch out jz
+				"linux"   "133"
+			}
+			"MemoryPatch_FixYourEternalReward_NOPCount"
+			{
+				"windows" "2"
+				"linux"   "6"
+			}
+
+			"MemoryPatch_DisguiseIsAlways2Seconds" // look for the 0.5 near the end
+			{
+				"windows" "546"
+				"linux"   "528"
 			}
 
 			"GetRadius"
@@ -405,7 +438,7 @@
 			"CTFItem::GetItemID"
 			{
 				"windows" "230"
-				"linux"   "238"
+				"linux"   "268"
 			}
 
 			"CTFWrench::Equip"
@@ -450,6 +483,11 @@
 				"windows" "349"
 				"linux"   "351"
 			}
+			"CBaseObject::GetType"
+			{
+				"windows" "357"
+				"linux"   "359"
+			}
 			
 			"CObjectSapper::FinishedBuilding"
 			{
@@ -473,11 +511,6 @@
 			{
 				"windows" "396"
 				"linux"	  "396"
-			}
-			"CTFPlayerShared::m_flDisguiseCompleteTime"
-			{
-				"windows" "556"
-				"linux"   "556"
 			}
 
 			"CGameTrace::m_pEnt"
@@ -893,9 +926,10 @@
 					}
 				}
 			}
-			"CTFPlayerShared::ModifyRage"
+			//"CTFPlayerShared::ModifyRage"
+			"CTFPlayerShared::SetRageMeter"
 			{
-				"signature" "CTFPlayerShared::ModifyRage"
+				"signature" "CTFPlayerShared::SetRageMeter"
 				"callconv"  "thiscall"
 				"this"      "address"
 				"return"    "void"
@@ -1012,13 +1046,6 @@
 						"type" "bool"
 					}
 				}
-			}
-			"CTFPlayerShared::UpdateCloakMeter"
-			{
-				"signature" "CTFPlayerShared::UpdateCloakMeter"
-				"callconv"  "thiscall"
-				"this"      "address"
-				"return"    "void"
 			}
 			"CTFWeaponBaseMelee::OnSwingHit"
 			{
