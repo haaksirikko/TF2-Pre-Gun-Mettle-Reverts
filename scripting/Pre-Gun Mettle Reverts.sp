@@ -39,7 +39,6 @@
 #define MAX_WEAPON_COUNT 10
 #define MAX_SHORTSTOP_CLIP 4
 #define SCOUT_PISTOL_AMMO_TYPE 2
-#define FLESH_IMPACT_BULLET_COUNT 5
 
 #define FLIGHT_TIME_TO_MAX_STUN	1.0
 
@@ -104,7 +103,7 @@
 
 #define TF_BURNING_FLAME_LIFE_PYRO	0.25		// pyro only displays burning effect momentarily
 
-#define PLUGIN_NAME "NotnHeavy - Pre-Gun Mettle Reverts"
+#define PLUGIN_NAME "Pre-Gun Mettle Reverts"
 
 DHookSetup DHooks_GetRadius;
 DHookSetup DHooks_CTFWeaponBase_FinishReload;
@@ -412,7 +411,8 @@ TFCond g_aDebuffConditions[] =
 	TFCond_OnFire,
 	TFCond_Jarated,
 	TFCond_Bleeding,
-	TFCond_Milked
+	TFCond_Milked,
+    TFCond_Gas
 };
 
 float PackRatios[] =
@@ -1071,11 +1071,6 @@ public void OnMapStart()
     PrecacheSound("weapons\\tf2_backshot_shotty.wav");
     PrecacheSound("sounds\\barret_arm_zap.wav");
     PrecacheSound("player\\pl_fleshbreak.wav");
-    for (int i = 1; i <= FLESH_IMPACT_BULLET_COUNT; ++i)
-    {
-        Format(tempPath, PLATFORM_MAX_PATH, "physics\\flesh\\flesh_impact_bullet%i.wav", i);
-        PrecacheSound(tempPath);
-    }
     for (int i = 0; i < sizeof(customWeapons); ++i)
     {
         Format(tempPath, PLATFORM_MAX_PATH, "%s.mdl", customWeapons[i].Model);
@@ -3783,10 +3778,7 @@ MRESReturn CanAirDash(int entity, DHookReturn returnValue)
             returnValue.Value = true;
             if (airDashCount == 1)
             {
-                char path[PLATFORM_MAX_PATH];
-                Format(path, PLATFORM_MAX_PATH, "physics\\flesh\\flesh_impact_bullet%i.wav", GetRandomInt(1, FLESH_IMPACT_BULLET_COUNT));
-                SDKHooks_TakeDamage(entity, entity, entity, 10.00, (DMG_BLAST_SURFACE | DMG_PREVENT_PHYSICS_FORCE));
-                EmitSoundToClient(entity, path);
+                SDKHooks_TakeDamage(entity, entity, entity, 10.00, DMG_BULLET | DMG_PREVENT_PHYSICS_FORCE);
             }
         }
         else if (GetEntProp(entity, Prop_Send, "m_iAirDash") < 1) // Normal double jump.
@@ -3832,7 +3824,7 @@ MRESReturn GetPlayerHealTarget(int entity, DHookReturn returnValue)
 
 MRESReturn ConfigureSniperFlinching(int entity, DHookReturn returnValue, DHookParam parameters)
 {
-    if (DoesPlayerHaveItem(entity, 642) && TF2_IsPlayerInCondition(entity, TFCond_Zoomed))
+    if (DoesPlayerHaveItem(entity, 642) && TF2_IsPlayerInCondition(entity, TFCond_Slowed))
     {
         returnValue.Value = false;
         return MRES_Supercede;
