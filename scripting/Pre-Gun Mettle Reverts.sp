@@ -406,6 +406,14 @@ enum
 	//
 };
 
+enum
+{
+	kAmmoSource_Pickup,					// this came from either a box of ammo or a player's dropped weapon
+	kAmmoSource_Resupply,				// resupply cabinet and/or full respawn
+	kAmmoSource_DispenserOrCart,		// the player is standing next to an engineer's dispenser or pushing the cart in a payload game
+	kAmmoSource_ResourceMeter			// it regenerated after a cooldown
+};
+
 TFCond g_aDebuffConditions[] =
 {
 	TFCond_OnFire,
