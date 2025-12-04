@@ -105,7 +105,7 @@
 
 #define TF_BURNING_FLAME_LIFE_PYRO	0.25		// pyro only displays burning effect momentarily
 
-#define PLUGIN_NAME "Pre-Gun Mettle Reverts"
+#define PLUGIN_NAME "pre-gunmettle-reverts"
 
 DHookSetup DHooks_GetRadius;
 DHookSetup DHooks_CTFWeaponBase_FinishReload;
