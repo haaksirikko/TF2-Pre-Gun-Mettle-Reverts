@@ -880,7 +880,8 @@ public void OnPluginStart()
     DHookEnableDetour(DHooks_CTFPlayer_TeamFortress_CalculateMaxSpeed, true, CalculateMaxSpeed);
     DHookEnableDetour(DHooks_CTFPlayer_CanAirDash, false, CanAirDash);
     DHookEnableDetour(DHooks_CTFPlayer_Taunt, false, UseTaunt);
-    DHookEnableDetour(DHooks_CTFPlayer_RegenThink, false, PlayerHealthRegen);
+    DHookEnableDetour(DHooks_CTFPlayer_RegenThink, false, PrePlayerHealthRegen);
+    DHookEnableDetour(DHooks_CTFPlayer_RegenThink, true, PostPlayerHealthRegen);
     DHookEnableDetour(DHooks_CTFPlayer_MedicGetHealTarget, false, GetPlayerHealTarget);
     DHookEnableDetour(DHooks_CTFPlayer_ApplyPunchImpulseX, false, ConfigureSniperFlinching);
     DHookEnableDetour(DHooks_CTFPlayer_AddToSpyKnife, false, AddToSpycicleMeter);
@@ -2771,31 +2772,7 @@ public void OnGameFrame()
         {
             if (IsClientInGame(i))
             {
-                // Might use a "dictionary" for this to automate things.
-                int health = GetClientHealth(i);
-                int maxHealth = allPlayers[i].MaxHealth;
-                if (DoesPlayerHaveItem(i, 354) && health < maxHealth) // Concheror passive heal.
-                {
-                    // Show that attacker got healed.
-                    Handle event = CreateEvent("player_healonhit", true);
-                    SetEventInt(event, "amount", 2);
-                    SetEventInt(event, "entindex", i);
-                    FireEvent(event);
 
-                    // Set health.
-                    SetEntityHealth(i, intMin(health + 2, maxHealth));
-                }
-                else if (DoesPlayerHaveItem(i, 642) && health < maxHealth) // Cozy Camper passive heal.
-                {
-                    // Show that attacker got healed.
-                    Handle event = CreateEvent("player_healonhit", true);
-                    SetEventInt(event, "amount", 1);
-                    SetEventInt(event, "entindex", i);
-                    FireEvent(event);
-
-                    // Set health.
-                    SetEntityHealth(i, intMin(health + 1, maxHealth));
-                }
             }
         }
     }
@@ -3754,9 +3731,22 @@ MRESReturn UseTaunt(int entity, DHookParam parameters)
     return MRES_Ignored;
 }
 
-MRESReturn PlayerHealthRegen(int entity)
+int prev_mvm_state;
+
+MRESReturn PrePlayerHealthRegen(int entity)
 {
     allPlayers[entity].RegenThink = true;
+
+    // Fake MvM game state for full health regeneration
+    prev_mvm_state = GameRules_GetProp("m_bPlayingMannVsMachine");
+    GameRules_SetProp("m_bPlayingMannVsMachine", 1);
+
+    return MRES_Ignored;
+}
+
+MRESReturn PostPlayerHealthRegen(int entity)
+{
+    GameRules_SetProp("m_bPlayingMannVsMachine", prev_mvm_state);
     return MRES_Ignored;
 }
 
