@@ -555,7 +555,6 @@ enum BazaarBargainShotManager
 enum struct Player
 {
     float TimeSinceEncounterWithFire;
-    int FramesSinceLastSwitch;
     int TicksSinceHeadshot;
     int TickSinceBonk;
     int MaxHealth;
@@ -564,6 +563,7 @@ enum struct Player
     int TicksSinceProjectileEncounter;
     int MostRecentProjectileEncounter;
     int OldHealth;
+    float WeaponSwitchTime;
     
     int Weapons[MAX_WEAPON_COUNT];
 
@@ -2427,7 +2427,7 @@ public void TF2_OnConditionRemoved(int client, TFCond condition)
 public void ClientSpawn(Event event, const char[] name, bool dontBroadcast)
 {
     int client = GetClientOfUserId(event.GetInt("userid"));
-    allPlayers[client].FramesSinceLastSwitch = 0;
+    allPlayers[client].WeaponSwitchTime = GetGameTime();
     if (DoesPlayerHaveItem(client, 173) && allPlayers[client].HadVitaSawEquipped) // Give up to 20% Uber back with the Vita-Saw.
         SetEntPropFloat(DoesPlayerHaveItemByClass(client, "tf_weapon_medigun"), Prop_Send, "m_flChargeLevel", min(0.2, allPlayers[client].CurrentUber));
     else
@@ -2502,15 +2502,16 @@ void SetSpreadInaccuracy(int client)
     allPlayers[client].SpreadRecovery = 66;
 }
 
-void PowerjackOverheal(int[] params) // Apply overheal on Powerjack kill.
+void HealOnKillOverheal(int[] params) // Apply overheal on Powerjack kill.
 {
     int client = params[0];
     int weapon = params[1];
+    int heal_amt = params[2];
+
     int max_overheal = TF2Util_GetPlayerMaxHealthBoost(client);
     int health_cur = GetClientHealth(client);
     int health_max = allPlayers[client].MaxHealth;
 
-    int heal_amt = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
     if (health_max - health_cur >= heal_amt)
         heal_amt = 0;
     else if (health_max > health_cur)
@@ -2655,7 +2656,6 @@ public void OnGameFrame()
             int activeWeapon = GetEntPropEnt(i, Prop_Send, "m_hActiveWeapon");
             int doesHaveWeapon;
             int secondaryWeapon = GetPlayerWeaponSlot(i, TFWeaponSlot_Secondary);
-            ++allPlayers[i].FramesSinceLastSwitch;
             if (allPlayers[i].SpreadRecovery > 0)
                 --allPlayers[i].SpreadRecovery;
 
@@ -2985,7 +2985,12 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
     int victimActiveWeapon = GetEntPropEnt(victim, Prop_Send, "m_hActiveWeapon");
     allPlayers[victim].HealthBeforeKill = GetClientHealth(victim);
 
-    if ((damagetype & DMG_IGNITE || index == 348) && ((attacker != victim && GetClientTeam(attacker) != GetClientTeam(victim)) || attacker == victim) && !IsInvulnerable(victim) && !TF2_IsPlayerInCondition(victim, TFCond_FireImmune)) // Anything that causes fire.
+    if (
+        (damagetype & DMG_IGNITE || index == 348) &&
+        ((attacker != victim && GetClientTeam(attacker) != GetClientTeam(victim)) || attacker == victim) &&
+        !IsInvulnerable(victim) &&
+        !TF2_IsPlayerInCondition(victim, TFCond_FireImmune)
+    ) // Anything that causes fire.
     {
         allPlayers[victim].TimeSinceEncounterWithFire = GetGameTime();
         returnValue = Plugin_Changed;
@@ -3034,8 +3039,6 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         damage = 60.00;
         returnValue = Plugin_Changed;
     }
-    else if ((damagecustom == TF_CUSTOM_CLEAVER || damagecustom == TF_CUSTOM_CLEAVER_CRIT) && allPlayers[victim].TicksSinceProjectileEncounter == GetGameTickCount() && GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp >= 1) // Flying Guillotine mini-crit.
-        TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION);
     else if ((inflictorIndex == 228 || inflictorIndex == 1085) && attacker != victim && TF2_GetClientTeam(attacker) != TF2_GetClientTeam(victim)) // Black Box hit.
     {
         // Show that attacker got healed.
@@ -3044,61 +3047,48 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         SetEventInt(event, "entindex", attacker);
         FireEvent(event);
 
-        // Set health.
-        SetEntityHealth(attacker, intMin(GetClientHealth(attacker) + 15, allPlayers[attacker].MaxHealth));
+        // Take health.
+        TF2Util_TakeHealth(attacker, 15.0);
     }
 
     // weapon-specific code
     if (IsValidEntity(weapon)) 
     {
-        if (index == 415 && GetEntityFlags(victim) & (FL_ONGROUND | FL_INWATER) == 0 && allPlayers[attacker].FramesSinceLastSwitch < TICK_RATE * 5) // Reserve Shooter mini-crit. This only works if it hasn't been 5 seconds since equipping the Reserve Shooter.
+        if ( // Weapons that can mini-crit.
+            (
+                // Reserve Shooter.
+                GetEntityFlags(victim) & (FL_ONGROUND | FL_INWATER) == 0 &&
+                GetGameTime() - allPlayers[attacker].WeaponSwitchTime < TF2Attrib_HookValueFloat(0.0, "mini_crit_airborne_deploy", weapon)
+            ) ||
+            (
+                // Direct Hit.
+                index == 127 && TF2_IsPlayerInCondition(victim, TFCond_BlastJumping)
+            ) ||
+            (
+                // Flying Guillotine.
+                (damagecustom == TF_CUSTOM_CLEAVER || damagecustom == TF_CUSTOM_CLEAVER_CRIT) &&
+                allPlayers[victim].TicksSinceProjectileEncounter == GetGameTickCount() &&
+                GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp >= 1
+            )
+        ) {
             TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION, inflictor);
-        if ((index == 228 || index == 1085) && attacker != victim && TF2_GetClientTeam(attacker) != TF2_GetClientTeam(victim)) // Black Box hit.
-        
-        if (index == 127 && TF2_IsPlayerInCondition(victim, TFCond_BlastJumping)) // Direct Hit mini-crit on players thrown into air via explosion.
-            TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION);
+        } 
         if (allPlayers[victim].TicksSinceHeadshot == GetGameTickCount() && (index == 61 || index == 1006)) // Ambassador headshot. TODO:
         {
             // You'd think that "damagetype |= DMG_USE_HITLOCATIONS" should work fine, but ever since Jungle Inferno, this was changed to only actually crit within a specific range (0-1200 HU).
             damagetype |= DMG_CRIT;
             returnValue = Plugin_Changed;
         }
-        if (index == 442) // Righteous Bison damage. I doubt this is exact but it's still pretty accurate as far as I'm aware.
+        if (index == 442 || index == 588) // Righteous Bison and Pomson 6000 damage. I doubt this is exact but it's still pretty accurate as far as I'm aware.
         {
             // Damage numbers.
             damagetype ^= DMG_USEDISTANCEMOD; // Do not use internal rampup/falloff.
-            damage = 16.00 * RemapValClamped(min(0.35, GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp), 0.35 / 2, 0.35, 1.25, 0.75); // Deal 16 base damage with 125% rampup, 75% falloff.
+            int base_damage = (TF2Attrib_HookValueInt(0, "energy_weapon_penetration", weapon) != 0) ? 16.00 : 48.00;
 
-            returnValue = Plugin_Changed;
-        }
-        if (index == 588) // Pomson damage (uses same rampup/falloff system as the Bison) and Medic/Spy Uber/Cloak drain. Welcome back, fun police.
-        {
-            // Damage.
-            damagetype ^= DMG_USEDISTANCEMOD; // Do not use internal rampup/falloff.
-            damage = 48.00 * RemapValClamped(min(0.35, GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp), 0.35 / 2, 0.35, 1.25, 0.75); // Deal 48 base damage with 125% rampup, 75% falloff.
+            // Deal base damage with 125% rampup, 75% falloff.
+            damage = base_damage * RemapValClamped(min(0.35, GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp), 0.35 / 2, 0.35, 1.25, 0.75);
 
-            // Uber/cloak drain: vectors.
-            float attackerPosition[3];
-            float victimPosition[3];
-            GetEntPropVector(attacker, Prop_Send, "m_vecOrigin", attackerPosition);
-            GetEntPropVector(victim, Prop_Send, "m_vecOrigin", victimPosition);
-
-            // Uber/cloak drain: mechanics.
-            float drain = RemapValClamped(GetVectorDistance(attackerPosition, victimPosition), 512.0, 1536.0, 1.0, 0.0);
-            if (TF2_GetPlayerClass(victim) == TFClass_Medic)
-            {
-                int medigun = GetPlayerWeaponSlot(victim, TFWeaponSlot_Secondary);
-                if (!GetEntProp(medigun, Prop_Send, "m_bChargeRelease"))
-                {
-                    float newUber = GetEntPropFloat(medigun, Prop_Send, "m_flChargeLevel") - 0.10 * (1.00 - drain);
-                    SetEntPropFloat(medigun, Prop_Send, "m_flChargeLevel", newUber > 0.00 ? newUber : 0.00);
-                }
-            }
-            else if (TF2_GetPlayerClass(victim) == TFClass_Spy)
-            {
-                float newCloak = GetEntPropFloat(victim, Prop_Send, "m_flCloakMeter") - 20 * (1.00 - drain);
-                SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", newCloak > 0.00 ? newCloak : 0.00);
-            }
+            // Pomson charge drains handled in AfterClientDamaged.
             returnValue = Plugin_Changed;
         }
         if (index == 357 && IsValidEntity(victimActiveWeapon) && GetWeaponIndex(victimActiveWeapon) == 357) // Half-Zatoichi duels. Instead of checking for the active weapon index or class name or whatever, Valve decided to go with checking for the honorbound attribute instead...
@@ -3319,9 +3309,10 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
         int index = GetWeaponIndex(weapon);
         if (!IsPlayerAlive(victim))
         {
-            if (index == 214) // Powerjack kill.
+            int heal_on_kill = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
+            if (heal_on_kill > 0) // Powerjack kill.
             {
-                RequestFrame(PowerjackOverheal, {attacker, weapon});
+                RequestFrame(HealOnKillOverheal, {attacker, weapon, heal_on_kill});
             }
             if (index == 356 && damagecustom == TF_CUSTOM_BACKSTAB) // Conniver's Kunai backstab.
             {
@@ -3345,6 +3336,33 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
         {
             SetEntityHealth(attacker, allPlayers[attacker].OldHealth);
         }
+        if (index == 588)
+        {
+            // Pomson charge drains. Welcome back, fun police.
+        
+            // Uber/cloak drain: vectors.
+            float attackerPosition[3];
+            float victimPosition[3];
+            GetEntPropVector(attacker, Prop_Send, "m_vecOrigin", attackerPosition);
+            GetEntPropVector(victim, Prop_Send, "m_vecOrigin", victimPosition);
+
+            // Uber/cloak drain: mechanics.
+            float drain = RemapValClamped(GetVectorDistance(attackerPosition, victimPosition), 512.0, 1536.0, 1.0, 0.0);
+            if (TF2_GetPlayerClass(victim) == TFClass_Medic)
+            {
+                int medigun = GetPlayerWeaponSlot(victim, TFWeaponSlot_Secondary);
+                if (!GetEntProp(medigun, Prop_Send, "m_bChargeRelease"))
+                {
+                    float newUber = GetEntPropFloat(medigun, Prop_Send, "m_flChargeLevel") - 0.10 * (1.00 - drain);
+                    SetEntPropFloat(medigun, Prop_Send, "m_flChargeLevel", newUber > 0.00 ? newUber : 0.00);
+                }
+            }
+            else if (TF2_GetPlayerClass(victim) == TFClass_Spy)
+            {
+                float newCloak = GetEntPropFloat(victim, Prop_Send, "m_flCloakMeter") - 20 * (1.00 - drain);
+                SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", newCloak > 0.00 ? newCloak : 0.00);
+            }
+        }
     }
     if (DoesPlayerHaveItem(victim, 1099) && TF2_IsPlayerInCondition(victim, TFCond_Charging)) // Charge loss when taking damage with the Tide Turner.
     {
@@ -3352,7 +3370,7 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
         SetEntPropFloat(victim, Prop_Send, "m_flChargeMeter", newCharge < 0.00 ? 0.00 : newCharge);
     }
     if (allPlayers[victim].TicksSinceFeignReady == GetGameTickCount()) // Set the cloak meter to 100 when feigning.
-        SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", 100.00);
+        SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", min(GetEntPropFloat(victim, Prop_Send, "m_flCloakMeter") + 50.00, 100.00));
 
 }
 
@@ -3368,7 +3386,7 @@ void AfterClientSwitchedWeapons(int client, int weapon)
             TF2_AddCondition(client, view_as<TFCond>(GetResistType(weapon) + TF_COND_RESIST_OFFSET));
         }
     }
-    allPlayers[client].FramesSinceLastSwitch = 0;
+    allPlayers[client].WeaponSwitchTime = GetGameTime();
 
     // Viewmodels.
     ApplyViewmodelsToPlayer(client);
@@ -3379,7 +3397,7 @@ Action ClientGetMaxHealth(int client, int& maxhealth)
     if (allPlayers[client].Weapons[0] == 0) // Final weapon structure check.
         StructuriseWeaponList(client);
     allPlayers[client].MaxHealth = maxhealth;
-    return Plugin_Handled;
+    return Plugin_Continue;
 }
 
 //////////////////////////////////////////////////////////////////////////////
