@@ -241,13 +241,6 @@
 				"linux"   "@_ZN21CTFWearableDemoShield10ShieldBashEP9CTFPlayerf"
 			}
 
-			"CTFAmmoPack::PackTouch" // unironically, look up the symbol LOL
-			{
-				"library" "server"
-				"windows" "\x55\x8B\xEC\x83\xEC\x1C\x53\x8B\x5D\x08\x56"
-				"linux"   "@_ZN11CTFAmmoPack9PackTouchEP11CBaseEntity"
-			}
-
 			"CTFWeaponBaseGun::GetWeaponSpread" // offset aMultSpreadScal_0 ; "mult_spread_scale"
 			{
 				"library" "server"
@@ -325,6 +318,13 @@
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x81\xEC\x90\x00\x00\x00\x56\x8B\x75\x0C"
 				"linux"	  "@_ZN12CTFGameRules24ApplyOnDamageModifyRulesER15CTakeDamageInfoP11CBaseEntityb"
+			}
+			
+			"CTFPlayer::GiveAmmo"
+			{
+				"library" "server"
+				"windows" "\x55\x8B\xEC\x53\x56\x8B\x75\x2A\x8B\xD9\x57\x8B\x7D\x2A\x89\x75"
+				"linux"   "@_ZN9CTFPlayer8GiveAmmoEiib11EAmmoSource"
 			}
 		}
 		"Offsets"
@@ -422,17 +422,6 @@
 			{
 				"windows" "438"
 				"linux"   "439"
-			}
-
-			"CAmmoPack::MyTouch"
-			{
-				"windows" "228"
-				"linux"   "229"
-			}	
-			"CAmmoPack::GetPowerupSize"
-			{
-				"windows" "233"
-				"linux"   "236"
 			}
 
 			"CTFItem::GetItemID"
@@ -590,20 +579,6 @@
 						"type" "cbaseentity"
 					}
 					"bitsDamageType"
-					{
-						"type" "int"
-					}
-				}
-			}
-			"CAmmoPack::MyTouch"
-			{
-				"offset"   "CAmmoPack::MyTouch"
-				"hooktype" "entity"
-				"this"     "entity"
-				"return"   "bool"
-				"arguments"
-				{
-					"pPlayer"
 					{
 						"type" "int"
 					}
@@ -1093,20 +1068,6 @@
 					}
 				}
 			}
-			"CTFAmmoPack::PackTouch"
-			{
-				"signature" "CTFAmmoPack::PackTouch"
-				"callconv"  "thiscall"
-				"this"      "entity"
-				"return"    "void"
-				"arguments"
-				{
-					"pPlayer"
-					{
-						"type" "cbaseentity"
-					}
-				}
-			}
 			"CTFLunchBox::ApplyBiteEffects"
 			{
 				"signature" "CTFLunchBox::ApplyBiteEffects"
@@ -1223,6 +1184,32 @@
 					"bAllowDamage"
 					{
 						"type"	"bool"
+					}
+				}
+			}
+			"CTFPlayer::GiveAmmo"
+			{
+				"signature" "CTFPlayer::GiveAmmo"
+				"callconv"  "thiscall"
+				"this"      "entity"
+				"return"    "int"
+				"arguments"
+				{
+					"iCount"
+					{
+						"type" "int"
+					}
+					"iAmmoIndex"
+					{
+						"type" "int"
+					}
+					"bSuppressSound"
+					{
+						"type" "bool"
+					}
+					"eAmmoSource"
+					{
+						"type" "int"
 					}
 				}
 			}

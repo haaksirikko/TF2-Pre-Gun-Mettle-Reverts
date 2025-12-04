@@ -116,7 +116,6 @@ DHookSetup DHooks_CTFMinigun_GetWeaponSpread;
 DHookSetup DHooks_CTFMinigun_GetProjectileDamage;
 DHookSetup DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod;
 DHookSetup DHooks_CTFBall_Ornament_Explode;
-DHookSetup DHooks_CAmmoPack_MyTouch;
 DHookSetup DHooks_CTFWrench_Equip;
 DHookSetup DHooks_CTFWrench_Detach;
 DHookSetup DHooks_CWeaponMedigun_ItemPostFrame;
@@ -149,7 +148,6 @@ DHookSetup DHooks_CTFWeaponBaseMelee_OnSwingHit;
 DHookSetup DHooks_CTFMinigun_SharedAttack;
 DHookSetup CTFWearable_CTFWearable_Break;
 DHookSetup DHooks_CTFWearableDemoShield_ShieldBash;
-DHookSetup DHooks_CTFAmmoPack_PackTouch;
 DHookSetup DHooks_CTFLunchBox_ApplyBiteEffects;
 DHookSetup DHooks_CTFLunchBox_DrainAmmo;
 DHookSetup DHooks_CWeaponMedigun_FindAndHealTargets;
@@ -158,8 +156,8 @@ DHookSetup DHooks_CBaseObject_GetConstructionMultiplier;
 DHookSetup DHooks_CBaseObject_CreateAmmoPack;
 DHookSetup DHooks_CTFProjectile_Arrow_BuildingHealingArrow;
 DHookSetup DHooks_CTFGameRules_ApplyOnDamageModifyRules;
+DynamicDetour dhook_CTFPlayer_GiveAmmo;
 
-Handle SDKCall_CAmmoPack_GetPowerupSize;
 Handle SDKCall_CTFPlayer_EquipWearable;
 Handle SDKCall_CTFItem_GetItemID;
 Handle SDKCall_CWeaponMedigun_CanAttack;
@@ -831,7 +829,6 @@ public void OnPluginStart()
     DHooks_CTFMinigun_GetProjectileDamage = DHookCreateFromConf(config, "CTFMinigun::GetProjectileDamage");
     DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod = DHookCreateFromConf(config, "CTFSniperRifleDecap::SniperRifleChargeRateMod");
     DHooks_CTFBall_Ornament_Explode = DHookCreateFromConf(config, "CTFBall_Ornament::Explode");
-    DHooks_CAmmoPack_MyTouch = DHookCreateFromConf(config, "CAmmoPack::MyTouch");
     DHooks_CTFWrench_Equip = DHookCreateFromConf(config, "CTFWrench::Equip");
     DHooks_CTFWrench_Detach = DHookCreateFromConf(config, "CTFWrench::Detach");
     DHooks_CWeaponMedigun_ItemPostFrame = DHookCreateFromConf(config, "CWeaponMedigun::ItemPostFrame");
@@ -864,7 +861,6 @@ public void OnPluginStart()
     DHooks_CTFMinigun_SharedAttack = DHookCreateFromConf(config, "CTFMinigun::SharedAttack");
     CTFWearable_CTFWearable_Break = DHookCreateFromConf(config, "CTFWearable::Break");
     DHooks_CTFWearableDemoShield_ShieldBash = DHookCreateFromConf(config, "CTFWearableDemoShield::ShieldBash");
-    DHooks_CTFAmmoPack_PackTouch = DHookCreateFromConf(config, "CTFAmmoPack::PackTouch");
     DHooks_CTFLunchBox_ApplyBiteEffects = DHookCreateFromConf(config, "CTFLunchBox::ApplyBiteEffects");
     DHooks_CTFLunchBox_DrainAmmo = DHookCreateFromConf(config, "CTFLunchBox::DrainAmmo");
     DHooks_CWeaponMedigun_FindAndHealTargets = DHookCreateFromConf(config, "CWeaponMedigun::FindAndHealTargets");
@@ -873,6 +869,7 @@ public void OnPluginStart()
     DHooks_CBaseObject_CreateAmmoPack = DHookCreateFromConf(config, "CBaseObject::CreateAmmoPack");
     DHooks_CTFProjectile_Arrow_BuildingHealingArrow = DHookCreateFromConf(config, "CTFProjectile_Arrow::BuildingHealingArrow");
     DHooks_CTFGameRules_ApplyOnDamageModifyRules = DHookCreateFromConf(config, "CTFGameRules::ApplyOnDamageModifyRules");
+    dhook_CTFPlayer_GiveAmmo = DynamicDetour.FromConf(config, "CTFPlayer::GiveAmmo");
     
     DHookEnableDetour(DHooks_InternalCalculateObjectCost, false, GetBuildingCost);
     DHookEnableDetour(DHooks_GetPlayerClassData, true, GetTFClassData);
@@ -897,7 +894,6 @@ public void OnPluginStart()
     DHookEnableDetour(DHooks_CTFMinigun_SharedAttack, false, OnMinigunSharedAttack);
     DHookEnableDetour(CTFWearable_CTFWearable_Break, true, BreakRazorback);
     DHookEnableDetour(DHooks_CTFWearableDemoShield_ShieldBash, false, OnShieldBash);
-    DHookEnableDetour(DHooks_CTFAmmoPack_PackTouch, false, CTFAmmoPack_OnAmmoTouch);
     DHookEnableDetour(DHooks_CTFLunchBox_ApplyBiteEffects, false, ApplyBiteEffects);
     DHookEnableDetour(DHooks_CTFLunchBox_DrainAmmo, false, RemoveSandvichAmmo);
     DHookEnableDetour(DHooks_CWeaponMedigun_FindAndHealTargets, false, PreFindAndHealTarget);
@@ -909,12 +905,9 @@ public void OnPluginStart()
     DHookEnableDetour(DHooks_CTFProjectile_Arrow_BuildingHealingArrow, true, PostHealingBoltImpact);
     DHookEnableDetour(DHooks_CTFGameRules_ApplyOnDamageModifyRules, false, ApplyDamageRules);
     DHookEnableDetour(DHooks_CTFGameRules_ApplyOnDamageModifyRules, true, ApplyDamageRules_Post);
+    dhook_CTFPlayer_GiveAmmo.Enable(Hook_Pre, DHookCallback_CTFPlayer_GiveAmmo);
 
     // SDKCall.
-    StartPrepSDKCall(SDKCall_Entity);
-    PrepSDKCall_SetFromConf(config, SDKConf_Virtual, "CAmmoPack::GetPowerupSize");
-    PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-    SDKCall_CAmmoPack_GetPowerupSize = EndPrepSDKCall();
     StartPrepSDKCall(SDKCall_Player);
     PrepSDKCall_SetFromConf(config, SDKConf_Virtual, "CTFPlayer::EquipWearable");
     PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
@@ -2583,8 +2576,6 @@ public void OnEntityCreated(int entity, const char[] class)
             DHookEntity(DHooks_CBaseObject_Construct, true, entity, _, PostConstructBuilding);
         }
     }
-    else if (StrContains(class, "item_ammopack") == 0) // Map ammopacks, rather than dropped ammopacks.
-        DHookEntity(DHooks_CAmmoPack_MyTouch, false, entity, _, CAmmoPack_OnAmmoTouch);
     else if (StrEqual(class, "tf_projectile_healing_bolt"))
         DHookEntity(DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer, true, entity, _, HealPlayerWithCrossbow);
     else if (StrEqual(class, "obj_attachment_sapper"))
@@ -3511,36 +3502,6 @@ MRESReturn OrnamentExplode(int entity) // Guys I think I actually fixed the Wrap
     return MRES_Supercede;
 }
 
-MRESReturn CAmmoPack_OnAmmoTouch(int entity, DHookReturn returnValue, DHookParam parameters)
-{
-    int client = GetEntityFromAddress(parameters.Get(1));
-    if (DoesPlayerHaveItem(client, 404)) // Health pickup with the Persian Persuader.
-    {
-        returnValue.Value = false;
-        int health = GetClientHealth(client);
-        if (health < allPlayers[client].MaxHealth)
-        {
-            // Get amount to heal.
-            int heal = RoundFloat(40 * PackRatios[SDKCall(SDKCall_CAmmoPack_GetPowerupSize, entity)]);
-
-            // Show that the player got healed.
-            Handle event = CreateEvent("player_healonhit", true);
-            SetEventInt(event, "amount", heal);
-            SetEventInt(event, "entindex", client);
-            FireEvent(event);
-
-            // Set health.
-            SetEntityHealth(client, intMin(health + heal, allPlayers[client].MaxHealth));
-            EmitSoundToAll("items\\gunpickup2.wav", entity, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_CHANGEPITCH | SND_CHANGEVOL);
-            returnValue.Value = true;
-
-            // todo: play pickup sound.
-        }
-        return MRES_Supercede;
-    }
-    return MRES_Ignored;
-}
-
 MRESReturn WeaponEquipped(int entity, DHookParam parameters)
 {
     int client = parameters.Get(1);
@@ -3984,29 +3945,6 @@ MRESReturn OnShieldBash(int entity)
     return MRES_Ignored;
 }
 
-MRESReturn CTFAmmoPack_OnAmmoTouch(int entity, DHookParam parameters)
-{
-    int client = parameters.Get(1);
-    if (client > 0 && client <= MaxClients && DoesPlayerHaveItem(client, 404)) // Health pickup with the Persian Persuader from dropped ammo packs.
-    {
-        int health = GetClientHealth(client);
-        if (health < allPlayers[client].MaxHealth)
-        {
-            // Show that the player got healed.
-            Handle event = CreateEvent("player_healonhit", true);
-            SetEventInt(event, "amount", 20);
-            SetEventInt(event, "entindex", client);
-            FireEvent(event);
-
-            // Set health.
-            SetEntityHealth(client, intMin(health + 20, allPlayers[client].MaxHealth));
-            RemoveEntity(entity);
-        }
-        return MRES_Supercede;
-    }
-    return MRES_Ignored;
-}
-
 MRESReturn ApplyBiteEffects(int entity)
 {
     int index = GetWeaponIndex(entity);
@@ -4128,6 +4066,55 @@ MRESReturn ApplyDamageRules_Post(Address thisPointer, DHookReturn returnValue, D
         tf_weapon_criticals_distance_falloff.BoolValue = tf_weapon_criticals_distance_falloff_original;
     }
     return MRES_Ignored;
+}
+
+MRESReturn DHookCallback_CTFPlayer_GiveAmmo(int client, DHookReturn returnValue, DHookParam parameters) {
+	if (
+		client > 0 &&
+		client <= MaxClients
+	) {
+		int amount = parameters.Get(1);
+		int ammo_idx = parameters.Get(2);
+		bool suppress_sound = parameters.Get(3);
+		int ammo_source = parameters.Get(4);
+
+		if (
+			TF2Attrib_HookValueInt(0, "ammo_becomes_health", client) == 1 &&
+			ammo_idx != TF_AMMO_METAL
+		) {
+			// Ammo from ground pickups is converted to health.
+			if (ammo_source == kAmmoSource_Pickup) {
+				int iTakenHealth = TF2Util_TakeHealth(client, float(amount));
+				if (iTakenHealth > 0)
+				{
+					if (!suppress_sound)
+					{
+						EmitGameSoundToAll("BaseCombatCharacter.AmmoPickup", client);
+					}
+
+					// Fire heal event
+					Event event = CreateEvent("player_healonhit", true);
+					event.SetInt("amount", iTakenHealth);
+					event.SetInt("entindex", client);
+					event.Fire();
+
+					// remove afterburn and bleed debuffs on heal
+					TF2_RemoveCondition(client, TFCond_OnFire);
+					TF2_RemoveCondition(client, TFCond_Bleeding);
+				}
+				returnValue.Value = iTakenHealth;
+				return MRES_Supercede;
+			}
+
+			// Ammo from the cart or engineer dispensers is flatly ignored.
+			if (ammo_source == kAmmoSource_DispenserOrCart) {
+				returnValue.Value = 0;
+				return MRES_Supercede;
+			}
+		}
+	}
+
+	return MRES_Ignored;
 }
 
 //////////////////////////////////////////////////////////////////////////////
