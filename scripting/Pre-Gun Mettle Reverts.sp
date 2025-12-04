@@ -1171,6 +1171,13 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
 
                 TF2Items_SetNumAttributes(itemNew, 2);
             }
+            else if (index == 222 || index == 1121) // Mad Milk.
+            {
+                // Remove old attributes.
+                TF2Items_SetAttribute(itemNew, 0, 784, 0.00); // Extinguishing teammates reduces cooldown by 0%
+
+                TF2Items_SetNumAttributes(itemNew, 1);
+            }
             else if (index == 773) // Pretty Boy's Pocket Pistol.
             {
                 // Remove old attributes.
