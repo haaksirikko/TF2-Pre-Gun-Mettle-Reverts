@@ -1445,7 +1445,7 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             else if (index == 214) // Powerjack.
             {
                 // Apply new attributes.
-                TF2Items_SetAttribute(newItem, 0, 180, 75.00); // +75 health restored on kill
+                TF2Items_SetAttribute(itemNew, 0, 180, 75.00); // +75 health restored on kill
 
                 // Heal-on-kill does not overheal as-is, handled separately
                 TF2Items_SetNumAttributes(itemNew, 1);
@@ -2503,11 +2503,10 @@ void SetSpreadInaccuracy(int client)
     allPlayers[client].SpreadRecovery = 66;
 }
 
-void HealOnKillOverheal(int[] params) // Apply overheal on Powerjack kill.
+void HealOnKillOverheal(int client) // Apply overheal on Powerjack kill.
 {
-    int client = params[0];
-    int weapon = params[1];
-    int heal_amt = params[2];
+    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    int heal_amt = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
 
     int max_overheal = TF2Util_GetPlayerMaxHealthBoost(client);
     int health_cur = GetClientHealth(client);
@@ -2818,8 +2817,8 @@ public void OnGameFrame()
 
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
+    int doesHaveWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
     // Allow the user to pick up buildings with the Short Circuit equipped.
-    doesHaveWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
     if (IsValidEntity(doesHaveWeapon) && GetWeaponIndex(doesHaveWeapon) == 528 && !GetEntProp(client, Prop_Send, "m_bHasPasstimeBall") && buttons & IN_ATTACK2)
         SDKCall(SDKCall_CTFPlayer_TryToPickupBuilding, client);
 
@@ -3280,7 +3279,7 @@ Action ClientDamagedAlive(int victim, int &attacker, int &inflictor, float &dama
     Action returnValue = Plugin_Continue;
 
     // Dead Ringer damage reduction.
-    if (allPlayers[victim].FeigningDeath && allPlayers[client].UnderFeignBuffs)
+    if (allPlayers[victim].FeigningDeath && allPlayers[victim].UnderFeignBuffs)
     {
         damage *= 0.10;
         returnValue = Plugin_Changed;
@@ -3322,7 +3321,7 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
             int heal_on_kill = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
             if (heal_on_kill > 0) // Powerjack kill.
             {
-                RequestFrame(HealOnKillOverheal, {attacker, weapon, heal_on_kill});
+                RequestFrame(HealOnKillOverheal, attacker);
             }
             if (index == 356 && damagecustom == TF_CUSTOM_BACKSTAB) // Conniver's Kunai backstab.
             {
@@ -4269,38 +4268,6 @@ public Action SoundPlayed(int clients[MAXPLAYERS], int& numClients, char sample[
 int LoadEntityHandleFromAddress(Address addr) // From nosoop's stocksoup framework.
 {
     return EntRefToEntIndex(LoadFromAddress(addr, NumberType_Int32) | (1 << 31));
-}
-
-int GetEntityFromAddress(Address pEntity) // From nosoop's stocksoup framework.
-{
-    static int offs_RefEHandle;
-    if (offs_RefEHandle) 
-    {
-        return LoadEntityHandleFromAddress(pEntity + view_as<Address>(offs_RefEHandle));
-    }
-
-    // if we don't have it already, attempt to lookup offset based on SDK information
-    // CWorld is derived from CBaseEntity so it should have both offsets
-    int offs_angRotation = FindDataMapInfo(0, "m_angRotation"), offs_vecViewOffset = FindDataMapInfo(0, "m_vecViewOffset");
-    if (offs_angRotation == -1) 
-    {
-        ThrowError("Could not find offset for ((CBaseEntity) CWorld)::m_angRotation");
-    }
-    else if (offs_vecViewOffset == -1) 
-    {
-        ThrowError("Could not find offset for ((CBaseEntity) CWorld)::m_vecViewOffset");
-    } 
-    else if ((offs_angRotation + 0x0C) != (offs_vecViewOffset - 0x04)) 
-    {
-        char game[32];
-        GetGameFolderName(game, sizeof(game));
-        ThrowError("Could not confirm offset of CBaseEntity::m_RefEHandle "
-                ... "(incorrect assumption for game '%s'?)", game);
-    }
-
-    // offset seems right, cache it for the next call
-    offs_RefEHandle = offs_angRotation + 0x0C;
-    return GetEntityFromAddress(pEntity);
 }
 
 any Dereference(Address address, NumberType bitdepth = NumberType_Int32)
