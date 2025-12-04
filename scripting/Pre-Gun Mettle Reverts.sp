@@ -1444,9 +1444,9 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             else if (index == 214) // Powerjack.
             {
                 // Apply new attributes.
-                //TF2Items_SetAttribute(newItem, 0, 180, 75.00); // +75 health restored on kill (doesn't overheal :c)
-                TF2Items_SetAttribute(itemNew, 0, 180, 0.00); // +0 health restored on kill
+                TF2Items_SetAttribute(newItem, 0, 180, 75.00); // +75 health restored on kill
 
+                // Heal-on-kill does not overheal as-is, handled separately
                 TF2Items_SetNumAttributes(itemNew, 1);
             }
         }
@@ -2502,6 +2502,28 @@ void SetSpreadInaccuracy(int client)
     allPlayers[client].SpreadRecovery = 66;
 }
 
+void PowerjackOverheal(int[] params) // Apply overheal on Powerjack kill.
+{
+    int client = params[0];
+    int weapon = params[1];
+    int max_overheal = TF2Util_GetPlayerMaxHealthBoost(client);
+    int health_cur = GetClientHealth(client);
+    int health_max = allPlayers[client].MaxHealth;
+
+    int heal_amt = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
+    if (health_max - health_cur >= heal_amt)
+        heal_amt = 0;
+    else if (health_max > health_cur)
+        heal_amt -= health_max - health_cur;
+    
+    heal_amt = intMin(max_overheal - health_cur, heal_amt);
+
+    if (heal_amt > 0) {
+        // Apply overheal
+        TF2Util_TakeHealth(client, float(heal_amt), TAKEHEALTH_IGNORE_MAXHEALTH);
+    }
+}
+
 void RewardChargeOnChargeKill(int client) // This is called next frame to compensate for charge bash kills.
 {
     float newCharge = GetEntPropFloat(client, Prop_Send, "m_flChargeMeter");
@@ -3299,14 +3321,7 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
         {
             if (index == 214) // Powerjack kill.
             {
-                // Show that attacker got healed.
-                Handle event = CreateEvent("player_healonhit", true);
-                SetEventInt(event, "amount", intMin(PYRO_OVERHEAL - GetClientHealth(attacker), 75));
-                SetEventInt(event, "entindex", attacker);
-                FireEvent(event);
-
-                // Set health.
-                SetEntityHealth(attacker, intMin(GetClientHealth(attacker) + 75, PYRO_OVERHEAL));
+                RequestFrame(PowerjackOverheal, {attacker, weapon});
             }
             if (index == 356 && damagecustom == TF_CUSTOM_BACKSTAB) // Conniver's Kunai backstab.
             {
