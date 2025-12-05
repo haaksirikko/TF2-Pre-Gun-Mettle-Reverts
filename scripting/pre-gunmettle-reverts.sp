@@ -1249,16 +1249,7 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
     {
         // Primary.
         {
-            if (index == 127) // Direct Hit.
-            {
-                // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 114, 0.00); // Mini-crits targets launched airborne by explosions, grapple hooks or rocket packs.
-
-                TF2Items_SetNumAttributes(itemNew, 1);
-                
-                // Maybe this is just too specific, but I decided to add a custom script for Direct Hit airborne attacks so that it only works with explosions.
-            }
-            else if (index == 228 || index == 1085) // Black Box.
+            if (index == 228 || index == 1085) // Black Box.
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 741, 0.00); // On Hit: Gain up to +0 health per attack
@@ -3069,10 +3060,6 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
                 // Reserve Shooter.
                 GetEntityFlags(victim) & (FL_ONGROUND | FL_INWATER) == 0 &&
                 GetGameTime() - allPlayers[attacker].WeaponSwitchTime < TF2Attrib_HookValueFloat(0.0, "mini_crit_airborne_deploy", weapon)
-            ) ||
-            (
-                // Direct Hit.
-                index == 127 && TF2_IsPlayerInCondition(victim, TFCond_BlastJumping)
             ) ||
             (
                 // Flying Guillotine.
