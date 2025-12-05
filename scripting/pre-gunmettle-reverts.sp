@@ -1227,12 +1227,13 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 250, 0.00); // Grants Triple Jump while deployed. Melee attacks mini-crit while airborne.
+                TF2Items_SetAttribute(itemNew, 1, 773, 1.00); // This weapon deploys 0% slower
 
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 1, 1, 0.8); // -20% damage penalty 
-                TF2Items_SetAttribute(itemNew, 2, 5, 1.3); // -30% slower firing speed
+                TF2Items_SetAttribute(itemNew, 2, 1, 0.8); // -20% damage penalty 
+                TF2Items_SetAttribute(itemNew, 3, 5, 1.3); // -30% slower firing speed
 
-                TF2Items_SetNumAttributes(itemNew, 3);
+                TF2Items_SetNumAttributes(itemNew, 4);
             }
             else if (index == 648) // Wrap Assassin.
             {
@@ -2577,8 +2578,8 @@ public void OnEntityCreated(int entity, const char[] class)
             DHookEntity(DHooks_CTFWeaponBase_SecondaryAttack, false, entity, _, WeaponSecondaryFire);
 
             // Restricted to wrenches but it's best to do the checks in the hooked functions instead.
-            DHookEntity(DHooks_CTFWrench_Equip, false, entity, _, WeaponEquipped);
-            DHookEntity(DHooks_CTFWrench_Detach, false, entity, _, WeaponDetached);
+            //DHookEntity(DHooks_CTFWrench_Equip, false, entity, _, WeaponEquipped);
+            //DHookEntity(DHooks_CTFWrench_Detach, false, entity, _, WeaponDetached);
 
             if (StrEqual(class, "tf_weapon_minigun"))
             {
