@@ -2503,10 +2503,10 @@ void SetSpreadInaccuracy(int client)
     allPlayers[client].SpreadRecovery = 66;
 }
 
-void HealOnKillOverheal(int client) // Apply overheal on Powerjack kill.
+void HealOnKillOverheal(int params[2]) // Apply overheal on Powerjack kill.
 {
-    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-    int heal_amt = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
+    int client = params[0];
+    int heal_amt = params[1];
 
     int max_overheal = TF2Util_GetPlayerMaxHealthBoost(client);
     int health_cur = GetClientHealth(client);
@@ -3321,7 +3321,10 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
             int heal_on_kill = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
             if (heal_on_kill > 0) // Powerjack kill.
             {
-                RequestFrame(HealOnKillOverheal, attacker);
+                int params[2];
+                params[0] = attacker;
+                params[1] = heal_on_kill;
+                RequestFrame(HealOnKillOverheal, params);
             }
             if (index == 356 && damagecustom == TF_CUSTOM_BACKSTAB) // Conniver's Kunai backstab.
             {
