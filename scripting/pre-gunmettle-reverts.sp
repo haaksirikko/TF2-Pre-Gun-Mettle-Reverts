@@ -1237,10 +1237,13 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             }
             else if (index == 648) // Wrap Assassin.
             {
-                // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 0, 1, 0.3); // -70% damage penalty 
+                // Remove old attributes.
+                TF2Items_SetAttribute(itemNew, 0, 278, 1.00); // +0% increase in recharge rate
 
-                TF2Items_SetNumAttributes(itemNew, 1);
+                // Apply new attributes.
+                TF2Items_SetAttribute(itemNew, 1, 1, 0.30); // -70% damage penalty 
+
+                TF2Items_SetNumAttributes(itemNew, 2);
             }
         }
     }
@@ -2686,15 +2689,10 @@ public void OnGameFrame()
                 allPlayers[i].CleaverChargeMeter = timer;
             }
 
-            // Sandman ball recharge. (This is REALLY hacky, but I can't use DHooks with CTFBat_Wood::InternalGetEffectBarRechargeTime because returning the right value won't do anything. :/)
-            doesHaveWeapon = DoesPlayerHaveItem(i, 44);
+            // Sandman and Wrap Assassin recharge. (This is REALLY hacky, but I can't use DHooks with CTFBat_Wood::InternalGetEffectBarRechargeTime because returning the right value won't do anything. :/)
+            doesHaveWeapon = DoesPlayerHaveItems(i, { 44, 648 }, 2);
             if (doesHaveWeapon)
                 SetEntPropFloat(doesHaveWeapon, Prop_Send, "m_flEffectBarRegenTime", GetEntPropFloat(doesHaveWeapon, Prop_Send, "m_flEffectBarRegenTime") + TICK_RATE_PRECISION / 3);
-
-            // Wrap Assassin ball recharge. (Also REALLY hacky.)
-            doesHaveWeapon = DoesPlayerHaveItem(i, 648);
-            if (doesHaveWeapon)
-                SetEntPropFloat(doesHaveWeapon, Prop_Send, "m_flEffectBarRegenTime", GetEntPropFloat(doesHaveWeapon, Prop_Send, "m_flEffectBarRegenTime") + TICK_RATE_PRECISION / 2);
 
             // B.A.S.E. Jumper redeployment and updraft.
             doesHaveWeapon = DoesPlayerHaveItem(i, 1101);
@@ -4132,7 +4130,7 @@ MRESReturn DHookCallback_CTFPlayer_GiveAmmo(int client, DHookReturn returnValue,
 
 		if (
 			TF2Attrib_HookValueInt(0, "ammo_becomes_health", client) == 1 &&
-			ammo_idx != TF_AMMO_METAL
+			ammo_idx != view_as<int>(TF_AMMO_METAL)
 		) {
 			// Ammo from ground pickups is converted to health.
 			if (ammo_source == kAmmoSource_Pickup) {
