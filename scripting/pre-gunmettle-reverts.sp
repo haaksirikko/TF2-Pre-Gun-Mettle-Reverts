@@ -222,6 +222,8 @@ bool BypassRoundTimerChecks = false;
 
 int OriginalTF2ItemsIndex = -1;
 
+int prev_mvm_state = 0;
+
 //////////////////////////////////////////////////////////////////////////////
 // PLUGIN INFO                                                              //
 //////////////////////////////////////////////////////////////////////////////
@@ -627,6 +629,10 @@ enum struct Player
     float DamageTakenDuringFeign;
     bool UnderFeignBuffs;
 
+    // Powerjack.
+    int HealOnKillFrame;
+    int HealOnKillAmount;
+
     // Weapon models.
     int CurrentViewmodel;
     int CurrentArmsViewmodel;
@@ -965,26 +971,26 @@ public void OnPluginStart()
     StoreToAddress(MemoryPatch_ShieldTurnCap, AddressOf(MemoryPatch_ShieldTurnCap_NewValue), NumberType_Int32);
     */
 
-    MemoryPatch_NormalScorchShotKnockback = GameConfGetAddress(config, "MemoryPatch_NormalScorchShotKnockback") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_NormalScorchShotKnockback"));
-    MemoryPatch_NormalScorchShotKnockback_oldValue = LoadFromAddress(MemoryPatch_NormalScorchShotKnockback, NumberType_Int32);
-    StoreToAddress(MemoryPatch_NormalScorchShotKnockback, AddressOf(MemoryPatch_NormalScorchShotKnockback_NewValue), NumberType_Int32);
+    // MemoryPatch_NormalScorchShotKnockback = GameConfGetAddress(config, "MemoryPatch_NormalScorchShotKnockback") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_NormalScorchShotKnockback"));
+    // MemoryPatch_NormalScorchShotKnockback_oldValue = LoadFromAddress(MemoryPatch_NormalScorchShotKnockback, NumberType_Int32);
+    // StoreToAddress(MemoryPatch_NormalScorchShotKnockback, AddressOf(MemoryPatch_NormalScorchShotKnockback_NewValue), NumberType_Int32);
 
-    MemoryPatch_DisableDebuffShortenWhilstCloaked = GameConfGetAddress(config, "MemoryPatch_DisableDebuffShortenWhilstCloaked") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_DisableDebuffShortenWhilstCloaked"));
-    MemoryPatch_DisableDebuffShortenWhilstCloaked_oldValue = LoadFromAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, NumberType_Int32);
-    StoreToAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, AddressOf(MemoryPatch_DisableDebuffShortenWhilstCloaked_NewValue), NumberType_Int32);
+    // MemoryPatch_DisableDebuffShortenWhilstCloaked = GameConfGetAddress(config, "MemoryPatch_DisableDebuffShortenWhilstCloaked") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_DisableDebuffShortenWhilstCloaked"));
+    // MemoryPatch_DisableDebuffShortenWhilstCloaked_oldValue = LoadFromAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, NumberType_Int32);
+    // StoreToAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, AddressOf(MemoryPatch_DisableDebuffShortenWhilstCloaked_NewValue), NumberType_Int32);
 
-    MemoryPatch_FixYourEternalReward = GameConfGetAddress(config, "MemoryPatch_FixYourEternalReward") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_FixYourEternalReward"));
-    MemoryPatch_FixYourEternalReward_NOPCount = GameConfGetOffset(config, "MemoryPatch_FixYourEternalReward_NOPCount");
-    for (int i = 0; i < MemoryPatch_FixYourEternalReward_NOPCount; ++i)
-    {
-        Address index = view_as<Address>(i);
-        MemoryPatch_FixYourEternalReward_OldValue[i] = LoadFromAddress(MemoryPatch_FixYourEternalReward + view_as<Address>(index), NumberType_Int8);
-        StoreToAddress(MemoryPatch_FixYourEternalReward + index, MemoryPatch_FixYourEternalReward_NewValue[i], NumberType_Int8);
-    }
+    // MemoryPatch_FixYourEternalReward = GameConfGetAddress(config, "MemoryPatch_FixYourEternalReward") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_FixYourEternalReward"));
+    // MemoryPatch_FixYourEternalReward_NOPCount = GameConfGetOffset(config, "MemoryPatch_FixYourEternalReward_NOPCount");
+    // for (int i = 0; i < MemoryPatch_FixYourEternalReward_NOPCount; ++i)
+    // {
+    //     Address index = view_as<Address>(i);
+    //     MemoryPatch_FixYourEternalReward_OldValue[i] = LoadFromAddress(MemoryPatch_FixYourEternalReward + view_as<Address>(index), NumberType_Int8);
+    //     StoreToAddress(MemoryPatch_FixYourEternalReward + index, MemoryPatch_FixYourEternalReward_NewValue[i], NumberType_Int8);
+    // }
 
-    MemoryPatch_DisguiseIsAlways2Seconds = GameConfGetAddress(config, "MemoryPatch_DisguiseIsAlways2Seconds") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_DisguiseIsAlways2Seconds"));
-    MemoryPatch_DisguiseIsAlways2Seconds_OldValue = LoadFromAddress(MemoryPatch_DisguiseIsAlways2Seconds, NumberType_Int32);
-    StoreToAddress(MemoryPatch_DisguiseIsAlways2Seconds, AddressOf(MemoryPatch_DisguiseIsAlways2Seconds_NewValue), NumberType_Int32);
+    // MemoryPatch_DisguiseIsAlways2Seconds = GameConfGetAddress(config, "MemoryPatch_DisguiseIsAlways2Seconds") + view_as<Address>(GameConfGetOffset(config, "MemoryPatch_DisguiseIsAlways2Seconds"));
+    // MemoryPatch_DisguiseIsAlways2Seconds_OldValue = LoadFromAddress(MemoryPatch_DisguiseIsAlways2Seconds, NumberType_Int32);
+    // StoreToAddress(MemoryPatch_DisguiseIsAlways2Seconds, AddressOf(MemoryPatch_DisguiseIsAlways2Seconds_NewValue), NumberType_Int32);
 
     // Offsets.
     CTFPlayerShared_m_pOuter = view_as<Address>(GameConfGetOffset(config, "CTFPlayerShared::m_pOuter"));
@@ -1000,6 +1006,8 @@ public void OnPluginStart()
     CTFPlayer_m_aObjects = view_as<Address>(FindSendPropInfo("CTFPlayer", "m_iClassModelParity") + 72);
 
     delete config;
+
+    prev_mvm_state = 0;
 
     // ConVars.
     tf_scout_hype_mod = FindConVar("tf_scout_hype_mod");
@@ -1095,14 +1103,14 @@ public void OnPluginEnd()
     /*
     StoreToAddress(MemoryPatch_ShieldTurnCap, MemoryPatch_ShieldTurnCap_OldValue, NumberType_Int32);
     */
-    StoreToAddress(MemoryPatch_NormalScorchShotKnockback, MemoryPatch_NormalScorchShotKnockback_oldValue, NumberType_Int32);
-    StoreToAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, MemoryPatch_DisableDebuffShortenWhilstCloaked_oldValue, NumberType_Int32);
-    for (int i = 0; i < MemoryPatch_FixYourEternalReward_NOPCount; ++i)
-    {
-        Address index = view_as<Address>(i);
-        StoreToAddress(MemoryPatch_FixYourEternalReward + index, MemoryPatch_FixYourEternalReward_OldValue[i], NumberType_Int8);
-    }
-    StoreToAddress(MemoryPatch_DisguiseIsAlways2Seconds, MemoryPatch_DisguiseIsAlways2Seconds_OldValue, NumberType_Int32);
+    // StoreToAddress(MemoryPatch_NormalScorchShotKnockback, MemoryPatch_NormalScorchShotKnockback_oldValue, NumberType_Int32);
+    // StoreToAddress(MemoryPatch_DisableDebuffShortenWhilstCloaked, MemoryPatch_DisableDebuffShortenWhilstCloaked_oldValue, NumberType_Int32);
+    // for (int i = 0; i < MemoryPatch_FixYourEternalReward_NOPCount; ++i)
+    // {
+    //     Address index = view_as<Address>(i);
+    //     StoreToAddress(MemoryPatch_FixYourEternalReward + index, MemoryPatch_FixYourEternalReward_OldValue[i], NumberType_Int8);
+    // }
+    // StoreToAddress(MemoryPatch_DisguiseIsAlways2Seconds, MemoryPatch_DisguiseIsAlways2Seconds_OldValue, NumberType_Int32);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2493,28 +2501,6 @@ void SetSpreadInaccuracy(int client)
     allPlayers[client].SpreadRecovery = 66;
 }
 
-void HealOnKillOverheal(int params[2]) // Apply overheal on Powerjack kill.
-{
-    int client = params[0];
-    int heal_amt = params[1];
-
-    int max_overheal = TF2Util_GetPlayerMaxHealthBoost(client);
-    int health_cur = GetClientHealth(client);
-    int health_max = allPlayers[client].MaxHealth;
-
-    if (health_max - health_cur >= heal_amt)
-        heal_amt = 0;
-    else if (health_max > health_cur)
-        heal_amt -= health_max - health_cur;
-    
-    heal_amt = intMin(max_overheal - health_cur, heal_amt);
-
-    if (heal_amt > 0) {
-        // Apply overheal
-        TF2Util_TakeHealth(client, float(heal_amt), TAKEHEALTH_IGNORE_MAXHEALTH);
-    }
-}
-
 void RewardChargeOnChargeKill(int client) // This is called next frame to compensate for charge bash kills.
 {
     float newCharge = GetEntPropFloat(client, Prop_Send, "m_flChargeMeter");
@@ -2766,6 +2752,26 @@ public void OnGameFrame()
             ) {
                 allPlayers[i].UnderFeignBuffs = false;
             }
+
+            if (allPlayers[i].HealOnKillFrame + 1 == GetGameTickCount())
+            {
+                int max_overheal = TF2Util_GetPlayerMaxHealthBoost(i);
+                int health_cur = GetClientHealth(i);
+                int health_max = allPlayers[i].MaxHealth;
+                int heal_amt = allPlayers[i].HealOnKillAmount;
+
+                if (health_max - health_cur >= heal_amt)
+                    heal_amt = 0;
+                else if (health_max > health_cur)
+                    heal_amt -= health_max - health_cur;
+                
+                heal_amt = intMin(max_overheal - health_cur, heal_amt);
+
+                if (heal_amt > 0) {
+                    // Apply overheal
+                    TF2Util_TakeHealth(i, float(heal_amt), TAKEHEALTH_IGNORE_MAXHEALTH);
+                }
+            }
         }
     }
 
@@ -2991,8 +2997,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
             if (flLifeTimeRatio >= 1.0)
             {
                 flStunDuration += 1.0;
-                iStunFlags = TF_STUN_CONTROLS;
-                iStunFlags |= TF_STUN_SPECIAL_SOUND;
+                iStunFlags = TF_STUN_CONTROLS | TF_STUN_SPECIAL_SOUND;
             }
 
             // Adjust stun amount and flags if we're hitting a boss or scaled enemy
@@ -3283,10 +3288,8 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
             int heal_on_kill = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
             if (heal_on_kill > 0) // Powerjack kill.
             {
-                int params[2];
-                params[0] = attacker;
-                params[1] = heal_on_kill;
-                RequestFrame(HealOnKillOverheal, params);
+                allPlayers[attacker].HealOnKillFrame = GetGameTickCount();
+                allPlayers[attacker].HealOnKillAmount = heal_on_kill;
             }
             if (index == 356 && damagecustom == TF_CUSTOM_BACKSTAB) // Conniver's Kunai backstab.
             {
@@ -3715,8 +3718,6 @@ MRESReturn UseTaunt(int entity, DHookParam parameters)
     }
     return MRES_Ignored;
 }
-
-int prev_mvm_state;
 
 MRESReturn PrePlayerHealthRegen(int entity)
 {
