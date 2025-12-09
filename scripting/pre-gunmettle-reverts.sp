@@ -172,7 +172,6 @@ Handle SDKCall_CBaseObject_GetReversesBuildingConstructionSpeed;
 
 ConVar tf_scout_hype_mod;
 ConVar tf_scout_stunball_base_duration;
-ConVar tf_parachute_maxspeed_onfire_z;
 ConVar tf_weapon_minicrits_distance_falloff;
 ConVar tf_weapon_criticals_distance_falloff;
 bool tf_weapon_minicrits_distance_falloff_original;
@@ -564,6 +563,7 @@ enum struct Player
     int MostRecentProjectileEncounter;
     int OldHealth;
     float WeaponSwitchTime;
+    int TicksSinceFallDamage;
     
     int Weapons[MAX_WEAPON_COUNT];
 
@@ -571,17 +571,11 @@ enum struct Player
     int PrimaryAmmo;
     int SecondaryAmmo;
 
-    // Pretty Boy's Pocket Pistol.
-    int TicksSinceFallDamage;
-
     // BONK! Atomic Punch.
     int TicksSinceBonkEnd;
 
     // Flying Guillotine.
     float CleaverChargeMeter;
-
-    // B.A.S.E. Jumper.
-    float TimeSinceDeployment;
 
     // Phlog.
     int TicksSinceMmmphUsage;
@@ -722,7 +716,9 @@ TF2ConVar defaultConVars[] =
 { 
     { "tf_airblast_cray", INVALID_HANDLE, 0, 0, TF2ConVarType_Int },  // Revert to previous airblast. Still need to change the hitboxes, not sure how though.
     { "tf_dropped_weapon_lifetime", INVALID_HANDLE, 0, 0, TF2ConVarType_Int }, // Do not drop weapons.
-    { "tf_parachute_aircontrol", INVALID_HANDLE, 0, 5.00, TF2ConVarType_Float }, // Give back full air control to the B.A.S.E. Jumper.
+    { "tf_parachute_deploy_toggle_allowed", INVALID_HANDLE, 0, 1, TF2ConVarType_Int }, // Allow parachute redeployment.
+    { "tf_parachute_maxspeed_onfire_z", INVALID_HANDLE, 0, 10.0, TF2ConVarType_Float }, // Fire updraft with B.A.S.E. Jumper.
+    { "tf_parachute_maxspeed_xy", INVALID_HANDLE, 0, 400.0, TF2ConVarType_Float }, // Max horizontal air speed is 400 HU/s when parachuting.
     { "tf_damageforcescale_pyro_jump", INVALID_HANDLE, 0, 6.50, TF2ConVarType_Float }, // Tune the Detonator/Scorch Shot jumps slightly.
     { "tf_construction_build_rate_multiplier", INVALID_HANDLE, 0, 2.00, TF2ConVarType_Float }, // Change the default build rate multiplier to 2.
     { "tf_feign_death_activate_damage_scale", INVALID_HANDLE, 0, 0.10, TF2ConVarType_Float }, // Apply 90% damage resistance when activating feign death. This is to get around damage numbers appearing 10 times smaller.
@@ -1008,7 +1004,6 @@ public void OnPluginStart()
     // ConVars.
     tf_scout_hype_mod = FindConVar("tf_scout_hype_mod");
     tf_scout_stunball_base_duration = FindConVar("tf_scout_stunball_base_duration");
-    tf_parachute_maxspeed_onfire_z = FindConVar("tf_parachute_maxspeed_onfire_z");
     tf_weapon_minicrits_distance_falloff = FindConVar("tf_weapon_minicrits_distance_falloff");
     tf_weapon_criticals_distance_falloff = FindConVar("tf_weapon_criticals_distance_falloff");
     tf_weapon_minicrits_distance_falloff_original = tf_weapon_minicrits_distance_falloff.BoolValue;
@@ -2694,25 +2689,6 @@ public void OnGameFrame()
             if (doesHaveWeapon)
                 SetEntPropFloat(doesHaveWeapon, Prop_Send, "m_flEffectBarRegenTime", GetEntPropFloat(doesHaveWeapon, Prop_Send, "m_flEffectBarRegenTime") + TICK_RATE_PRECISION / 3);
 
-            // B.A.S.E. Jumper redeployment and updraft.
-            doesHaveWeapon = DoesPlayerHaveItem(i, 1101);
-            if (doesHaveWeapon)
-            {
-                if (TF2_IsPlayerInCondition(i, TFCond_Parachute) && TF2_IsPlayerInCondition(i, TFCond_OnFire)) // Updraft.
-                {
-                    float velocity[3];
-                    float maxVerticalMomentum = GetConVarFloat(tf_parachute_maxspeed_onfire_z);
-                    GetEntPropVector(i, Prop_Data, "m_vecVelocity", velocity);
-                    if (velocity[2] < maxVerticalMomentum)
-                    {
-                        velocity[2] = maxVerticalMomentum;
-                        TeleportEntity(i, NULL_VECTOR, NULL_VECTOR, velocity);
-                    }
-                }
-                else if (TF2_IsPlayerInCondition(i, TFCond_ParachuteDeployed) && GetGameTime() - allPlayers[i].TimeSinceDeployment > 0.2) // Allow parachute redeployment.
-                    TF2_RemoveCondition(i, TFCond_ParachuteDeployed);
-            }
-
             // Half-Zatoichi honorbound. This is hacky but hooks to Weapon_Switch/Weapon_CanSwitchTo don't fully work because of client prediction.
             if (activeWeapon != -1 && GetWeaponIndex(activeWeapon) == 357 && GetEntProp(i, Prop_Send, "m_iKillCountSinceLastDeploy") == 0 && GetGameTime() >= GetEntPropFloat(i, Prop_Send, "m_flFirstPrimaryAttack"))
                 TF2_AddCondition(i, TFCond_RestrictToMelee, TICK_RATE_PRECISION * 2);
@@ -3619,7 +3595,7 @@ MRESReturn PlantSapperOnBuilding(int entity)
 
 MRESReturn PreSentryWrenchHit(int entity, DHookReturn returnValue, DHookParam parameters)
 {
-    if (GetEntProp(entity, Prop_Send, "m_bMiniBuilding")) // Do not allow reparations on mini sentries.
+    if (GetEntProp(entity, Prop_Send, "m_bMiniBuilding")) // Do not allow repairs on mini sentries.
     {
         returnValue.Value = false;
         return MRES_Supercede;
@@ -3852,8 +3828,6 @@ MRESReturn RemoveCondition(Address thisPointer, DHookParam parameters)
         if (GetEntPropFloat(client, Prop_Send, "m_flCloakMeter") > 40.00) // Set the cloak meter to 40% when ending feign death.
             SetEntPropFloat(client, Prop_Send, "m_flCloakMeter", 40.00);
     }
-    else if (condition == TFCond_Parachute) // Used to check for parachute redeployment.
-        allPlayers[client].TimeSinceDeployment = GetGameTime();
     else if (condition == TFCond_Bonked) // Checks for BONK! slowdown.
         allPlayers[client].TicksSinceBonkEnd = GetGameTickCount();
     return MRES_Ignored;
