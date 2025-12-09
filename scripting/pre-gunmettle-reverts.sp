@@ -107,55 +107,55 @@
 
 #define PLUGIN_NAME "pre-gunmettle-reverts"
 
-DHookSetup DHooks_GetRadius;
-DHookSetup DHooks_CTFWeaponBase_FinishReload;
-DHookSetup DHooks_CTFWeaponBase_Reload;
-DHookSetup DHooks_CTFWeaponBase_PrimaryAttack;
-DHookSetup DHooks_CTFWeaponBase_SecondaryAttack;
-DHookSetup DHooks_CTFMinigun_GetWeaponSpread;
-DHookSetup DHooks_CTFMinigun_GetProjectileDamage;
-DHookSetup DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod;
-DHookSetup DHooks_CTFBall_Ornament_Explode;
-DHookSetup DHooks_CTFWrench_Equip;
-DHookSetup DHooks_CTFWrench_Detach;
-DHookSetup DHooks_CWeaponMedigun_ItemPostFrame;
-DHookSetup DHooks_CBaseObject_Command_Repair;
-DHookSetup DHooks_CBaseObject_StartBuilding;
-DHookSetup DHooks_CBaseObject_Construct;
-DHookSetup DHooks_CObjectSapper_FinishedBuilding;
-DHookSetup DHooks_CObjectSentrygun_OnWrenchHit;
-DHookSetup DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer;
+DynamicHook DHooks_GetRadius;
+DynamicHook DHooks_CTFWeaponBase_FinishReload;
+DynamicHook DHooks_CTFWeaponBase_Reload;
+DynamicHook DHooks_CTFWeaponBase_PrimaryAttack;
+DynamicHook DHooks_CTFWeaponBase_SecondaryAttack;
+DynamicHook DHooks_CTFMinigun_GetWeaponSpread;
+DynamicHook DHooks_CTFMinigun_GetProjectileDamage;
+DynamicHook DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod;
+DynamicHook DHooks_CTFBall_Ornament_Explode;
+DynamicHook DHooks_CTFWrench_Equip;
+DynamicHook DHooks_CTFWrench_Detach;
+DynamicHook DHooks_CWeaponMedigun_ItemPostFrame;
+DynamicHook DHooks_CBaseObject_Command_Repair;
+DynamicHook DHooks_CBaseObject_StartBuilding;
+DynamicHook DHooks_CBaseObject_Construct;
+DynamicHook DHooks_CObjectSapper_FinishedBuilding;
+DynamicHook DHooks_CObjectSentrygun_OnWrenchHit;
+DynamicHook DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer;
 
-DHookSetup DHooks_InternalCalculateObjectCost;
-DHookSetup DHooks_GetPlayerClassData;
-DHookSetup DHooks_CTeamplayRoundBasedRules_GetActiveRoundTimer;
-DHookSetup DHooks_CTFPlayer_TeamFortress_CalculateMaxSpeed;
-DHookSetup DHooks_CTFPlayer_CanAirDash;
-DHookSetup DHooks_CTFPlayer_Taunt;
-DHookSetup DHooks_CTFPlayer_RegenThink;
-DHookSetup DHooks_CTFPlayer_MedicGetHealTarget;
-DHookSetup DHooks_CTFPlayer_ApplyPunchImpulseX;
-DHookSetup DHooks_CTFPlayer_AddToSpyKnife;
-DHookSetup DHooks_CTFPlayer_OnTakeDamage_Alive;
-DHookSetup DHooks_CTFPlayerShared_AddCond;
-DHookSetup DHooks_CTFPlayerShared_RemoveCond;
-DHookSetup DHooks_CTFPlayerShared_SetRageMeter;
-DHookSetup DHooks_CTFPlayerShared_CalcChargeCrit;
-DHookSetup DHooks_CTFPlayerShared_AddToSpyCloakMeter;
-//DHookSetup DHooks_CTFPlayerShared_Heal;
-DHookSetup DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect;
-DHookSetup DHooks_CTFWeaponBaseMelee_OnSwingHit;
-DHookSetup DHooks_CTFMinigun_SharedAttack;
-DHookSetup CTFWearable_CTFWearable_Break;
-DHookSetup DHooks_CTFWearableDemoShield_ShieldBash;
-DHookSetup DHooks_CTFLunchBox_ApplyBiteEffects;
-DHookSetup DHooks_CTFLunchBox_DrainAmmo;
-DHookSetup DHooks_CWeaponMedigun_FindAndHealTargets;
-DHookSetup DHooks_CBaseObject_OnConstructionHit;
-DHookSetup DHooks_CBaseObject_GetConstructionMultiplier;
-DHookSetup DHooks_CBaseObject_CreateAmmoPack;
-DHookSetup DHooks_CTFProjectile_Arrow_BuildingHealingArrow;
-DHookSetup DHooks_CTFGameRules_ApplyOnDamageModifyRules;
+DynamicDetour DHooks_InternalCalculateObjectCost;
+DynamicDetour DHooks_GetPlayerClassData;
+DynamicDetour DHooks_CTeamplayRoundBasedRules_GetActiveRoundTimer;
+DynamicDetour DHooks_CTFPlayer_TeamFortress_CalculateMaxSpeed;
+DynamicDetour DHooks_CTFPlayer_CanAirDash;
+DynamicDetour DHooks_CTFPlayer_Taunt;
+DynamicDetour DHooks_CTFPlayer_RegenThink;
+DynamicDetour DHooks_CTFPlayer_MedicGetHealTarget;
+DynamicDetour DHooks_CTFPlayer_ApplyPunchImpulseX;
+DynamicDetour DHooks_CTFPlayer_AddToSpyKnife;
+DynamicDetour DHooks_CTFPlayer_OnTakeDamage_Alive;
+DynamicDetour DHooks_CTFPlayerShared_AddCond;
+DynamicDetour DHooks_CTFPlayerShared_RemoveCond;
+DynamicDetour DHooks_CTFPlayerShared_SetRageMeter;
+DynamicDetour DHooks_CTFPlayerShared_CalcChargeCrit;
+DynamicDetour DHooks_CTFPlayerShared_AddToSpyCloakMeter;
+//DynamicDetour DHooks_CTFPlayerShared_Heal;
+DynamicDetour DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect;
+DynamicDetour DHooks_CTFWeaponBaseMelee_OnSwingHit;
+DynamicDetour DHooks_CTFMinigun_SharedAttack;
+DynamicDetour CTFWearable_CTFWearable_Break;
+DynamicDetour DHooks_CTFWearableDemoShield_ShieldBash;
+DynamicDetour DHooks_CTFLunchBox_ApplyBiteEffects;
+DynamicDetour DHooks_CTFLunchBox_DrainAmmo;
+DynamicDetour DHooks_CWeaponMedigun_FindAndHealTargets;
+DynamicDetour DHooks_CBaseObject_OnConstructionHit;
+DynamicDetour DHooks_CBaseObject_GetConstructionMultiplier;
+DynamicDetour DHooks_CBaseObject_CreateAmmoPack;
+DynamicDetour DHooks_CTFProjectile_Arrow_BuildingHealingArrow;
+DynamicDetour DHooks_CTFGameRules_ApplyOnDamageModifyRules;
 DynamicDetour dhook_CTFPlayer_GiveAmmo;
 
 Handle SDKCall_CTFPlayer_EquipWearable;
@@ -831,91 +831,91 @@ public void OnPluginStart()
     }
 
     // DHooks.
-    DHooks_GetRadius = DHookCreateFromConf(config, "GetRadius");
-    DHooks_CTFWeaponBase_FinishReload = DHookCreateFromConf(config, "CTFWeaponBase::FinishReload");
-    DHooks_CTFWeaponBase_Reload = DHookCreateFromConf(config, "CTFWeaponBase::Reload");
-    DHooks_CTFWeaponBase_PrimaryAttack = DHookCreateFromConf(config, "CTFWeaponBase::PrimaryAttack");
-    DHooks_CTFWeaponBase_SecondaryAttack = DHookCreateFromConf(config, "CTFWeaponBase::SecondaryAttack");
-    DHooks_CTFMinigun_GetWeaponSpread = DHookCreateFromConf(config, "CTFMinigun::GetWeaponSpread");
-    DHooks_CTFMinigun_GetProjectileDamage = DHookCreateFromConf(config, "CTFMinigun::GetProjectileDamage");
-    DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod = DHookCreateFromConf(config, "CTFSniperRifleDecap::SniperRifleChargeRateMod");
-    DHooks_CTFBall_Ornament_Explode = DHookCreateFromConf(config, "CTFBall_Ornament::Explode");
-    DHooks_CTFWrench_Equip = DHookCreateFromConf(config, "CTFWrench::Equip");
-    DHooks_CTFWrench_Detach = DHookCreateFromConf(config, "CTFWrench::Detach");
-    DHooks_CWeaponMedigun_ItemPostFrame = DHookCreateFromConf(config, "CWeaponMedigun::ItemPostFrame");
-    DHooks_CBaseObject_Command_Repair = DHookCreateFromConf(config, "CBaseObject::Command_Repair");
-    DHooks_CBaseObject_StartBuilding = DHookCreateFromConf(config, "CBaseObject::StartBuilding");
-    DHooks_CBaseObject_Construct = DHookCreateFromConf(config, "CBaseObject::Construct");
-    DHooks_CObjectSapper_FinishedBuilding = DHookCreateFromConf(config, "CObjectSapper::FinishedBuilding");
-    DHooks_CObjectSentrygun_OnWrenchHit = DHookCreateFromConf(config, "CObjectSentrygun::OnWrenchHit");
-    DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer = DHookCreateFromConf(config, "CTFProjectile_HealingBolt::ImpactTeamPlayer");
+    DHooks_GetRadius = DynamicHook.FromConf(config, "GetRadius");
+    DHooks_CTFWeaponBase_FinishReload = DynamicHook.FromConf(config, "CTFWeaponBase::FinishReload");
+    DHooks_CTFWeaponBase_Reload = DynamicHook.FromConf(config, "CTFWeaponBase::Reload");
+    DHooks_CTFWeaponBase_PrimaryAttack = DynamicHook.FromConf(config, "CTFWeaponBase::PrimaryAttack");
+    DHooks_CTFWeaponBase_SecondaryAttack = DynamicHook.FromConf(config, "CTFWeaponBase::SecondaryAttack");
+    DHooks_CTFMinigun_GetWeaponSpread = DynamicHook.FromConf(config, "CTFMinigun::GetWeaponSpread");
+    DHooks_CTFMinigun_GetProjectileDamage = DynamicHook.FromConf(config, "CTFMinigun::GetProjectileDamage");
+    DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod = DynamicHook.FromConf(config, "CTFSniperRifleDecap::SniperRifleChargeRateMod");
+    DHooks_CTFBall_Ornament_Explode = DynamicHook.FromConf(config, "CTFBall_Ornament::Explode");
+    DHooks_CTFWrench_Equip = DynamicHook.FromConf(config, "CTFWrench::Equip");
+    DHooks_CTFWrench_Detach = DynamicHook.FromConf(config, "CTFWrench::Detach");
+    DHooks_CWeaponMedigun_ItemPostFrame = DynamicHook.FromConf(config, "CWeaponMedigun::ItemPostFrame");
+    DHooks_CBaseObject_Command_Repair = DynamicHook.FromConf(config, "CBaseObject::Command_Repair");
+    DHooks_CBaseObject_StartBuilding = DynamicHook.FromConf(config, "CBaseObject::StartBuilding");
+    DHooks_CBaseObject_Construct = DynamicHook.FromConf(config, "CBaseObject::Construct");
+    DHooks_CObjectSapper_FinishedBuilding = DynamicHook.FromConf(config, "CObjectSapper::FinishedBuilding");
+    DHooks_CObjectSentrygun_OnWrenchHit = DynamicHook.FromConf(config, "CObjectSentrygun::OnWrenchHit");
+    DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer = DynamicHook.FromConf(config, "CTFProjectile_HealingBolt::ImpactTeamPlayer");
 
-    DHooks_InternalCalculateObjectCost = DHookCreateFromConf(config, "InternalCalculateObjectCost");
-    DHooks_GetPlayerClassData = DHookCreateFromConf(config, "GetPlayerClassData");
-    DHooks_CTeamplayRoundBasedRules_GetActiveRoundTimer = DHookCreateFromConf(config, "CTeamplayRoundBasedRules::GetActiveRoundTimer");
-    DHooks_CTFPlayer_TeamFortress_CalculateMaxSpeed = DHookCreateFromConf(config, "CTFPlayer::TeamFortress_CalculateMaxSpeed");
-    DHooks_CTFPlayer_CanAirDash = DHookCreateFromConf(config, "CTFPlayer::CanAirDash");
-    DHooks_CTFPlayer_Taunt = DHookCreateFromConf(config, "CTFPlayer::Taunt");
-    DHooks_CTFPlayer_RegenThink = DHookCreateFromConf(config, "CTFPlayer::RegenThink");
-    DHooks_CTFPlayer_MedicGetHealTarget = DHookCreateFromConf(config, "CTFPlayer::MedicGetHealTarget");
-    DHooks_CTFPlayer_ApplyPunchImpulseX = DHookCreateFromConf(config, "CTFPlayer::ApplyPunchImpulseX");
-    DHooks_CTFPlayer_AddToSpyKnife = DHookCreateFromConf(config, "CTFPlayer::AddToSpyKnife");
-    DHooks_CTFPlayer_OnTakeDamage_Alive = DHookCreateFromConf(config, "CTFPlayer::OnTakeDamage_Alive");
-    DHooks_CTFPlayerShared_AddCond = DHookCreateFromConf(config, "CTFPlayerShared::AddCond");
-    DHooks_CTFPlayerShared_RemoveCond = DHookCreateFromConf(config, "CTFPlayerShared::RemoveCond");
-    DHooks_CTFPlayerShared_SetRageMeter = DHookCreateFromConf(config, "CTFPlayerShared::SetRageMeter");
-    DHooks_CTFPlayerShared_CalcChargeCrit = DHookCreateFromConf(config, "CTFPlayerShared::CalcChargeCrit");
-    DHooks_CTFPlayerShared_AddToSpyCloakMeter = DHookCreateFromConf(config, "CTFPlayerShared::AddToSpyCloakMeter");
-    //DHooks_CTFPlayerShared_Heal = DHookCreateFromConf(config, "CTFPlayerShared::Heal");
-    DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect = DHookCreateFromConf(config, "CTFPlayerShared::CanRecieveMedigunChargeEffect");
-    DHooks_CTFWeaponBaseMelee_OnSwingHit = DHookCreateFromConf(config, "CTFWeaponBaseMelee::OnSwingHit");
-    DHooks_CTFMinigun_SharedAttack = DHookCreateFromConf(config, "CTFMinigun::SharedAttack");
-    CTFWearable_CTFWearable_Break = DHookCreateFromConf(config, "CTFWearable::Break");
-    DHooks_CTFWearableDemoShield_ShieldBash = DHookCreateFromConf(config, "CTFWearableDemoShield::ShieldBash");
-    DHooks_CTFLunchBox_ApplyBiteEffects = DHookCreateFromConf(config, "CTFLunchBox::ApplyBiteEffects");
-    DHooks_CTFLunchBox_DrainAmmo = DHookCreateFromConf(config, "CTFLunchBox::DrainAmmo");
-    DHooks_CWeaponMedigun_FindAndHealTargets = DHookCreateFromConf(config, "CWeaponMedigun::FindAndHealTargets");
-    DHooks_CBaseObject_OnConstructionHit = DHookCreateFromConf(config, "CBaseObject::OnConstructionHit");
-    DHooks_CBaseObject_GetConstructionMultiplier = DHookCreateFromConf(config, "CBaseObject::GetConstructionMultiplier");
-    DHooks_CBaseObject_CreateAmmoPack = DHookCreateFromConf(config, "CBaseObject::CreateAmmoPack");
-    DHooks_CTFProjectile_Arrow_BuildingHealingArrow = DHookCreateFromConf(config, "CTFProjectile_Arrow::BuildingHealingArrow");
-    DHooks_CTFGameRules_ApplyOnDamageModifyRules = DHookCreateFromConf(config, "CTFGameRules::ApplyOnDamageModifyRules");
+    DHooks_InternalCalculateObjectCost = DynamicDetour.FromConf(config, "InternalCalculateObjectCost");
+    DHooks_GetPlayerClassData = DynamicDetour.FromConf(config, "GetPlayerClassData");
+    DHooks_CTeamplayRoundBasedRules_GetActiveRoundTimer = DynamicDetour.FromConf(config, "CTeamplayRoundBasedRules::GetActiveRoundTimer");
+    DHooks_CTFPlayer_TeamFortress_CalculateMaxSpeed = DynamicDetour.FromConf(config, "CTFPlayer::TeamFortress_CalculateMaxSpeed");
+    DHooks_CTFPlayer_CanAirDash = DynamicDetour.FromConf(config, "CTFPlayer::CanAirDash");
+    DHooks_CTFPlayer_Taunt = DynamicDetour.FromConf(config, "CTFPlayer::Taunt");
+    DHooks_CTFPlayer_RegenThink = DynamicDetour.FromConf(config, "CTFPlayer::RegenThink");
+    DHooks_CTFPlayer_MedicGetHealTarget = DynamicDetour.FromConf(config, "CTFPlayer::MedicGetHealTarget");
+    DHooks_CTFPlayer_ApplyPunchImpulseX = DynamicDetour.FromConf(config, "CTFPlayer::ApplyPunchImpulseX");
+    DHooks_CTFPlayer_AddToSpyKnife = DynamicDetour.FromConf(config, "CTFPlayer::AddToSpyKnife");
+    DHooks_CTFPlayer_OnTakeDamage_Alive = DynamicDetour.FromConf(config, "CTFPlayer::OnTakeDamage_Alive");
+    DHooks_CTFPlayerShared_AddCond = DynamicDetour.FromConf(config, "CTFPlayerShared::AddCond");
+    DHooks_CTFPlayerShared_RemoveCond = DynamicDetour.FromConf(config, "CTFPlayerShared::RemoveCond");
+    DHooks_CTFPlayerShared_SetRageMeter = DynamicDetour.FromConf(config, "CTFPlayerShared::SetRageMeter");
+    DHooks_CTFPlayerShared_CalcChargeCrit = DynamicDetour.FromConf(config, "CTFPlayerShared::CalcChargeCrit");
+    DHooks_CTFPlayerShared_AddToSpyCloakMeter = DynamicDetour.FromConf(config, "CTFPlayerShared::AddToSpyCloakMeter");
+    //DHooks_CTFPlayerShared_Heal = DynamicDetour.FromConf(config, "CTFPlayerShared::Heal");
+    DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect = DynamicDetour.FromConf(config, "CTFPlayerShared::CanRecieveMedigunChargeEffect");
+    DHooks_CTFWeaponBaseMelee_OnSwingHit = DynamicDetour.FromConf(config, "CTFWeaponBaseMelee::OnSwingHit");
+    DHooks_CTFMinigun_SharedAttack = DynamicDetour.FromConf(config, "CTFMinigun::SharedAttack");
+    CTFWearable_CTFWearable_Break = DynamicDetour.FromConf(config, "CTFWearable::Break");
+    DHooks_CTFWearableDemoShield_ShieldBash = DynamicDetour.FromConf(config, "CTFWearableDemoShield::ShieldBash");
+    DHooks_CTFLunchBox_ApplyBiteEffects = DynamicDetour.FromConf(config, "CTFLunchBox::ApplyBiteEffects");
+    DHooks_CTFLunchBox_DrainAmmo = DynamicDetour.FromConf(config, "CTFLunchBox::DrainAmmo");
+    DHooks_CWeaponMedigun_FindAndHealTargets = DynamicDetour.FromConf(config, "CWeaponMedigun::FindAndHealTargets");
+    DHooks_CBaseObject_OnConstructionHit = DynamicDetour.FromConf(config, "CBaseObject::OnConstructionHit");
+    DHooks_CBaseObject_GetConstructionMultiplier = DynamicDetour.FromConf(config, "CBaseObject::GetConstructionMultiplier");
+    DHooks_CBaseObject_CreateAmmoPack = DynamicDetour.FromConf(config, "CBaseObject::CreateAmmoPack");
+    DHooks_CTFProjectile_Arrow_BuildingHealingArrow = DynamicDetour.FromConf(config, "CTFProjectile_Arrow::BuildingHealingArrow");
+    DHooks_CTFGameRules_ApplyOnDamageModifyRules = DynamicDetour.FromConf(config, "CTFGameRules::ApplyOnDamageModifyRules");
     dhook_CTFPlayer_GiveAmmo = DynamicDetour.FromConf(config, "CTFPlayer::GiveAmmo");
     
-    DHookEnableDetour(DHooks_InternalCalculateObjectCost, false, GetBuildingCost);
-    DHookEnableDetour(DHooks_GetPlayerClassData, true, GetTFClassData);
-    DHookEnableDetour(DHooks_CTeamplayRoundBasedRules_GetActiveRoundTimer, false, IsRoundTimerActive);
-    DHookEnableDetour(DHooks_CTFPlayer_TeamFortress_CalculateMaxSpeed, true, CalculateMaxSpeed);
-    DHookEnableDetour(DHooks_CTFPlayer_CanAirDash, false, CanAirDash);
-    DHookEnableDetour(DHooks_CTFPlayer_Taunt, false, UseTaunt);
-    DHookEnableDetour(DHooks_CTFPlayer_RegenThink, false, PrePlayerHealthRegen);
-    DHookEnableDetour(DHooks_CTFPlayer_RegenThink, true, PostPlayerHealthRegen);
-    DHookEnableDetour(DHooks_CTFPlayer_MedicGetHealTarget, false, GetPlayerHealTarget);
-    DHookEnableDetour(DHooks_CTFPlayer_ApplyPunchImpulseX, false, ConfigureSniperFlinching);
-    DHookEnableDetour(DHooks_CTFPlayer_AddToSpyKnife, false, AddToSpycicleMeter);
-    DHookEnableDetour(DHooks_CTFPlayer_OnTakeDamage_Alive, false, OnTakeDamageAlive);
-    DHookEnableDetour(DHooks_CTFPlayerShared_AddCond, false, AddCondition);
-    DHookEnableDetour(DHooks_CTFPlayerShared_RemoveCond, false, RemoveCondition);
-    DHookEnableDetour(DHooks_CTFPlayerShared_SetRageMeter, false, ModifyRageMeter);
-    DHookEnableDetour(DHooks_CTFPlayerShared_CalcChargeCrit, false, CalculateChargeCrit);
-    DHookEnableDetour(DHooks_CTFPlayerShared_AddToSpyCloakMeter, false, AddToCloak);
-    //DHookEnableDetour(DHooks_CTFPlayerShared_Heal, false, HealPlayer);
-    DHookEnableDetour(DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect, false, CheckIfPlayerCanBeUbered);
-    DHookEnableDetour(DHooks_CTFWeaponBaseMelee_OnSwingHit, false, OnMeleeSwingHit);
-    DHookEnableDetour(DHooks_CTFMinigun_SharedAttack, false, OnMinigunSharedAttack);
-    DHookEnableDetour(CTFWearable_CTFWearable_Break, true, BreakRazorback);
-    DHookEnableDetour(DHooks_CTFWearableDemoShield_ShieldBash, false, OnShieldBash);
-    DHookEnableDetour(DHooks_CTFLunchBox_ApplyBiteEffects, false, ApplyBiteEffects);
-    DHookEnableDetour(DHooks_CTFLunchBox_DrainAmmo, false, RemoveSandvichAmmo);
-    DHookEnableDetour(DHooks_CWeaponMedigun_FindAndHealTargets, false, PreFindAndHealTarget);
-    DHookEnableDetour(DHooks_CWeaponMedigun_FindAndHealTargets, true, PostFindAndHealTarget);
-    DHookEnableDetour(DHooks_CBaseObject_OnConstructionHit, false, BuildingConstructionHit);
-    DHookEnableDetour(DHooks_CBaseObject_GetConstructionMultiplier, true, GetBuildingConstructionMultiplier);
-    DHookEnableDetour(DHooks_CBaseObject_CreateAmmoPack, false, CreateBuildingGibs);
-    DHookEnableDetour(DHooks_CTFProjectile_Arrow_BuildingHealingArrow, false, PreHealingBoltImpact);
-    DHookEnableDetour(DHooks_CTFProjectile_Arrow_BuildingHealingArrow, true, PostHealingBoltImpact);
-    DHookEnableDetour(DHooks_CTFGameRules_ApplyOnDamageModifyRules, false, ApplyDamageRules);
-    DHookEnableDetour(DHooks_CTFGameRules_ApplyOnDamageModifyRules, true, ApplyDamageRules_Post);
+    DHooks_InternalCalculateObjectCost.Enable(Hook_Pre, GetBuildingCost);
+    DHooks_GetPlayerClassData.Enable(Hook_Post, GetTFClassData);
+    DHooks_CTeamplayRoundBasedRules_GetActiveRoundTimer.Enable(Hook_Pre, IsRoundTimerActive);
+    DHooks_CTFPlayer_TeamFortress_CalculateMaxSpeed.Enable(Hook_Post, CalculateMaxSpeed);
+    DHooks_CTFPlayer_CanAirDash.Enable(Hook_Pre, CanAirDash);
+    DHooks_CTFPlayer_Taunt.Enable(Hook_Pre, UseTaunt);
+    DHooks_CTFPlayer_RegenThink.Enable(Hook_Pre, PrePlayerHealthRegen);
+    DHooks_CTFPlayer_RegenThink.Enable(Hook_Post, PostPlayerHealthRegen);
+    DHooks_CTFPlayer_MedicGetHealTarget.Enable(Hook_Pre, GetPlayerHealTarget);
+    DHooks_CTFPlayer_ApplyPunchImpulseX.Enable(Hook_Pre, ConfigureSniperFlinching);
+    DHooks_CTFPlayer_AddToSpyKnife.Enable(Hook_Pre, AddToSpycicleMeter);
+    DHooks_CTFPlayer_OnTakeDamage_Alive.Enable(Hook_Pre, OnTakeDamageAlive);
+    DHooks_CTFPlayerShared_AddCond.Enable(Hook_Pre, AddCondition);
+    DHooks_CTFPlayerShared_RemoveCond.Enable(Hook_Pre, RemoveCondition);
+    DHooks_CTFPlayerShared_SetRageMeter.Enable(Hook_Pre, ModifyRageMeter);
+    DHooks_CTFPlayerShared_CalcChargeCrit.Enable(Hook_Pre, CalculateChargeCrit);
+    DHooks_CTFPlayerShared_AddToSpyCloakMeter.Enable(Hook_Pre, AddToCloak);
+    //DHooks_CTFPlayerShared_Heal.Enable(Hook_Pre, HealPlayer);
+    DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect.Enable(Hook_Pre, CheckIfPlayerCanBeUbered);
+    DHooks_CTFWeaponBaseMelee_OnSwingHit.Enable(Hook_Pre, OnMeleeSwingHit);
+    DHooks_CTFMinigun_SharedAttack.Enable(Hook_Pre, OnMinigunSharedAttack);
+    CTFWearable_CTFWearable_Break.Enable(Hook_Post, BreakRazorback);
+    DHooks_CTFWearableDemoShield_ShieldBash.Enable(Hook_Pre, OnShieldBash);
+    DHooks_CTFLunchBox_ApplyBiteEffects.Enable(Hook_Pre, ApplyBiteEffects);
+    DHooks_CTFLunchBox_DrainAmmo.Enable(Hook_Pre, RemoveSandvichAmmo);
+    DHooks_CWeaponMedigun_FindAndHealTargets.Enable(Hook_Pre, PreFindAndHealTarget);
+    DHooks_CWeaponMedigun_FindAndHealTargets.Enable(Hook_Post, PostFindAndHealTarget);
+    DHooks_CBaseObject_OnConstructionHit.Enable(Hook_Pre, BuildingConstructionHit);
+    DHooks_CBaseObject_GetConstructionMultiplier.Enable(Hook_Post, GetBuildingConstructionMultiplier);
+    DHooks_CBaseObject_CreateAmmoPack.Enable(Hook_Pre, CreateBuildingGibs);
+    DHooks_CTFProjectile_Arrow_BuildingHealingArrow.Enable(Hook_Pre, PreHealingBoltImpact);
+    DHooks_CTFProjectile_Arrow_BuildingHealingArrow.Enable(Hook_Post, PostHealingBoltImpact);
+    DHooks_CTFGameRules_ApplyOnDamageModifyRules.Enable(Hook_Pre, ApplyDamageRules);
+    DHooks_CTFGameRules_ApplyOnDamageModifyRules.Enable(Hook_Post, ApplyDamageRules_Post);
     dhook_CTFPlayer_GiveAmmo.Enable(Hook_Pre, DHookCallback_CTFPlayer_GiveAmmo);
 
     // SDKCall.
@@ -2547,31 +2547,31 @@ public void OnEntityCreated(int entity, const char[] class)
             SetEntProp(entity, Prop_Send, "m_bValidatedAttachedEntity", true);
 
             // DHooks.
-            DHookEntity(DHooks_CTFWeaponBase_FinishReload, false, entity, _, WeaponReloaded);
-            DHookEntity(DHooks_CTFWeaponBase_Reload, false, entity, _, WeaponReload);
-            DHookEntity(DHooks_CTFWeaponBase_PrimaryAttack, false, entity, _, WeaponPrimaryFire);
-            DHookEntity(DHooks_CTFWeaponBase_SecondaryAttack, false, entity, _, WeaponSecondaryFire);
+            DHooks_CTFWeaponBase_FinishReload.HookEntity(Hook_Pre, entity, WeaponReloaded);
+            DHooks_CTFWeaponBase_Reload.HookEntity(Hook_Pre, entity, WeaponReload);
+            DHooks_CTFWeaponBase_PrimaryAttack.HookEntity(Hook_Pre, entity, WeaponPrimaryFire);
+            DHooks_CTFWeaponBase_SecondaryAttack.HookEntity(Hook_Pre, entity, WeaponSecondaryFire);
 
             // Restricted to wrenches but it's best to do the checks in the hooked functions instead.
-            //DHookEntity(DHooks_CTFWrench_Equip, false, entity, _, WeaponEquipped);
-            //DHookEntity(DHooks_CTFWrench_Detach, false, entity, _, WeaponDetached);
+            //DHooks_CTFWrench_Equip.HookEntity(Hook_Pre, entity, WeaponEquipped);
+            //DHooks_CTFWrench_Detach.HookEntity(Hook_Pre, entity, WeaponDetached);
 
             if (StrEqual(class, "tf_weapon_minigun"))
             {
-                DHookEntity(DHooks_CTFMinigun_GetWeaponSpread, false, entity, _, GetMinigunWeaponSpread);
-                DHookEntity(DHooks_CTFMinigun_GetProjectileDamage, false, entity, _, GetMinigunDamage);
+                DHooks_CTFMinigun_GetWeaponSpread.HookEntity(Hook_Pre, entity, GetMinigunWeaponSpread);
+                DHooks_CTFMinigun_GetProjectileDamage.HookEntity(Hook_Pre, entity, GetMinigunDamage);
             }
             else if (StrEqual(class, "tf_weapon_medigun"))
-                DHookEntity(DHooks_CWeaponMedigun_ItemPostFrame, false, entity, _, MedigunItemPostFrame);
+                DHooks_CWeaponMedigun_ItemPostFrame.HookEntity(Hook_Pre, entity, MedigunItemPostFrame);
             else if (StrEqual(class, "tf_weapon_sniperrifle_decap"))
-                DHookEntity(DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod, false, entity, _, GetBazaarBargainChargeRate);
+                DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod.HookEntity(Hook_Pre, entity, GetBazaarBargainChargeRate);
         }
         allEntities[entity].OriginalTF2ItemsIndex = OriginalTF2ItemsIndex;
     }
     else if (StrEqual(class, "tf_projectile_ball_ornament"))
-        DHookEntity(DHooks_CTFBall_Ornament_Explode, false, entity, _, OrnamentExplode);
+        DHooks_CTFBall_Ornament_Explode.HookEntity(Hook_Pre, entity, OrnamentExplode);
     else if (StrEqual(class, "tf_projectile_rocket") || StrEqual(class, "tf_projectile_flare"))
-        DHookEntity(DHooks_GetRadius, true, entity, _, GetProjectileExplosionRadius);
+        DHooks_GetRadius.HookEntity(Hook_Post, entity, GetProjectileExplosionRadius);
     else if (StrEqual(class, "obj_sentrygun") || StrEqual(class, "obj_dispenser") || StrEqual(class, "obj_teleporter")) // Engineer's buildings.
     {
         for (int i = 0; i <= MAXPLAYERS; ++i)
@@ -2579,21 +2579,21 @@ public void OnEntityCreated(int entity, const char[] class)
         SDKHook(entity, SDKHook_OnTakeDamage, BuildingDamaged);
 
         // TODO: REVISIT
-        //DHookEntity(DHooks_CBaseObject_Command_Repair, false, entity, _, CommandRepair);
+        //DHooks_CBaseObject_Command_Repair.HookEntity(Hook_Pre, entity, CommandRepair);
         
         if (StrEqual(class, "obj_sentrygun"))
         {
-            DHookEntity(DHooks_CObjectSentrygun_OnWrenchHit, false, entity, _, PreSentryWrenchHit);
-            DHookEntity(DHooks_CObjectSentrygun_OnWrenchHit, true, entity, _, PostSentryWrenchHit);
-            DHookEntity(DHooks_CBaseObject_StartBuilding, true, entity, _, StartBuilding);
-            DHookEntity(DHooks_CBaseObject_Construct, false, entity, _, PreConstructBuilding);
-            DHookEntity(DHooks_CBaseObject_Construct, true, entity, _, PostConstructBuilding);
+            DHooks_CObjectSentrygun_OnWrenchHit.HookEntity(Hook_Pre, entity, PreSentryWrenchHit);
+            DHooks_CObjectSentrygun_OnWrenchHit.HookEntity(Hook_Post, entity, PostSentryWrenchHit);
+            DHooks_CBaseObject_StartBuilding.HookEntity(Hook_Post, entity, StartBuilding);
+            DHooks_CBaseObject_Construct.HookEntity(Hook_Pre, entity, PreConstructBuilding);
+            DHooks_CBaseObject_Construct.HookEntity(Hook_Post, entity, PostConstructBuilding);
         }
     }
     else if (StrEqual(class, "tf_projectile_healing_bolt"))
-        DHookEntity(DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer, true, entity, _, HealPlayerWithCrossbow);
+        DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer.HookEntity(Hook_Post, entity, HealPlayerWithCrossbow);
     else if (StrEqual(class, "obj_attachment_sapper"))
-        DHookEntity(DHooks_CObjectSapper_FinishedBuilding, false, entity, _, PlantSapperOnBuilding);
+        DHooks_CObjectSapper_FinishedBuilding.HookEntity(Hook_Pre, entity, PlantSapperOnBuilding);
 
     SDKHook(entity, SDKHook_SpawnPost, EntitySpawn);
     SDKHook(entity, SDKHook_Touch, EntityTouch);
@@ -3047,7 +3047,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
                 GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp >= 1
             )
         ) {
-            TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION, inflictor);
+            TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION);
         } 
         if (allPlayers[victim].TicksSinceHeadshot == GetGameTickCount() && (index == 61 || index == 1006)) // Ambassador headshot. TODO:
         {
