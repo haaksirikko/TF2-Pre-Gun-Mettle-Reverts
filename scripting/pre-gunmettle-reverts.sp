@@ -3059,7 +3059,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         {
             // Damage numbers.
             damagetype ^= DMG_USEDISTANCEMOD; // Do not use internal rampup/falloff.
-            int base_damage = (TF2Attrib_HookValueInt(0, "energy_weapon_penetration", weapon) != 0) ? 16.00 : 48.00;
+            float base_damage = (TF2Attrib_HookValueInt(0, "energy_weapon_penetration", weapon) != 0) ? 16.00 : 48.00;
 
             // Deal base damage with 125% rampup, 75% falloff.
             damage = base_damage * RemapValClamped(min(0.35, GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp), 0.35 / 2, 0.35, 1.25, 0.75);
