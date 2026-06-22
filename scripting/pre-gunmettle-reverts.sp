@@ -16,7 +16,7 @@
 
 // This plugin also uses DHooks with Detours by Dr!fter. This should be included with SourceMod 1.11.
 
-// This plugin also uses SM-Memory by Scags.
+// This plugin also uses SourceScramble.
 
 //////////////////////////////////////////////////////////////////////////////
 // PRE-PROCESSING                                                           //
@@ -29,9 +29,9 @@
 #include <sdkhooks>
 #include <tf2_stocks>
 #include <dhooks>
-#include <smmem>
 #include <tf2attributes>
 #include <tf2utils>
+#include <sourcescramble>
 
 #define KUNAI_OVERHEAL 180
 #define TICK_RATE 66
@@ -193,7 +193,7 @@ Address CTakeDamageInfo_m_bitsDamageType;
 Address CTakeDamageInfo_m_eCritType;
 Address CWeaponMedigun_m_bReloadDown; // *((_BYTE *)this + 2059)
 int CObjectSentrygun_m_flShieldFadeTime; // *((float *)this + 712)
-Address CBaseObject_m_flHealth; // *((float *)a1 + 652)
+int CBaseObject_m_flHealth; // *((float *)a1 + 652)
 Address CTFPlayer_m_aObjects;
 const Address TFPlayerClassData_t_m_flMaxSpeed = view_as<Address>(640); // *((float *)this + 160)
 int CTFPlayerShared_m_flFeignDeathEnd;
@@ -973,7 +973,7 @@ public void OnPluginStart()
     CTakeDamageInfo_m_eCritType = view_as<Address>(100); //view_as<Address>(GameConfGetOffset(config, "CTakeDamageInfo::m_eCritType"));
     CWeaponMedigun_m_bReloadDown = view_as<Address>(FindSendPropInfo("CWeaponMedigun", "m_nChargeResistType") + 11);
     CObjectSentrygun_m_flShieldFadeTime = FindSendPropInfo("CObjectSentrygun", "m_nShieldLevel") + 4;
-    CBaseObject_m_flHealth = view_as<Address>(FindSendPropInfo("CBaseObject", "m_bHasSapper") - 4);
+    CBaseObject_m_flHealth = FindSendPropInfo("CBaseObject", "m_bHasSapper") - 4;
     CTFPlayer_m_aObjects = view_as<Address>(FindSendPropInfo("CTFPlayer", "m_iClassModelParity") + 72);
     CTFPlayerShared_m_flFeignDeathEnd = FindSendPropInfo("CTFPlayer", "m_bFeignDeathReady") - 4;
 
@@ -1146,13 +1146,6 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
 
                 TF2Items_SetNumAttributes(itemNew, 2);
             }
-            else if (index == 222 || index == 1121) // Mad Milk.
-            {
-                // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 784, 0.00); // Extinguishing teammates reduces cooldown by 0%
-
-                TF2Items_SetNumAttributes(itemNew, 1);
-            }
             else if (index == 773) // Pretty Boy's Pocket Pistol.
             {
                 // Remove old attributes.
@@ -1201,13 +1194,12 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 250, 0.00); // Grants Triple Jump while deployed. Melee attacks mini-crit while airborne.
-                TF2Items_SetAttribute(itemNew, 1, 773, 1.00); // This weapon deploys 0% slower
 
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 2, 1, 0.8); // -20% damage penalty 
-                TF2Items_SetAttribute(itemNew, 3, 5, 1.3); // -30% slower firing speed
+                TF2Items_SetAttribute(itemNew, 1, 1, 0.8); // -20% damage penalty 
+                TF2Items_SetAttribute(itemNew, 2, 5, 1.3); // -30% slower firing speed
 
-                TF2Items_SetNumAttributes(itemNew, 4);
+                TF2Items_SetNumAttributes(itemNew, 3);
             }
             else if (index == 648) // Wrap Assassin.
             {
@@ -1231,9 +1223,10 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 741, 0.00); // On Hit: Gain up to +0 health per attack
 
-                TF2Items_SetNumAttributes(itemNew, 1);
+                // Apply new attributes.
+                TF2Items_SetAttribute(itemNew, 1, 110, 15.0); // On Hit: +15 health
 
-                // Healing is dealt with separately
+                TF2Items_SetNumAttributes(itemNew, 2);
             }
             else if (index == 237) // Rocket Jumper.
             {
@@ -1329,34 +1322,26 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
     {
         // Primary.
         {
-            if (StrEqual(class, "tf_weapon_flamethrower")) // Stats for all flamethrowers. TODO: Figure out what the hell I'm going to do with flame mechanics, adjust flame damage, remove flame density, replace flame visuals.
-            {
-                // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 0, 783, 0.00); // Extinguishing teammates restores 0 health
-
-                TF2Items_SetNumAttributes(itemNew, 1);
-            }
-
             if (index == 215) // Degreaser.
             {
                 // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 1, 547, 1.00); // This weapon deploys 0% faster
-                TF2Items_SetAttribute(itemNew, 2, 199, 1.00); // This weapon holsters 0% faster
-                TF2Items_SetAttribute(itemNew, 3, 170, 1.00); // +0% airblast cost
+                TF2Items_SetAttribute(itemNew, 0, 547, 1.00); // This weapon deploys 0% faster
+                TF2Items_SetAttribute(itemNew, 1, 199, 1.00); // This weapon holsters 0% faster
+                TF2Items_SetAttribute(itemNew, 2, 170, 1.00); // +0% airblast cost
 
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 4, 178, 0.35); // 65% faster weapon switch
-                TF2Items_SetAttribute(itemNew, 5, 1, 0.9); // -10% damage penalty 
-                TF2Items_SetAttribute(itemNew, 6, 72, 0.5); // -25% afterburn damage penalty
+                TF2Items_SetAttribute(itemNew, 3, 178, 0.35); // 65% faster weapon switch
+                TF2Items_SetAttribute(itemNew, 4, 1, 0.9); // -10% damage penalty 
+                TF2Items_SetAttribute(itemNew, 5, 72, 0.5); // -25% afterburn damage penalty
 
-                TF2Items_SetNumAttributes(itemNew, 7);
+                TF2Items_SetNumAttributes(itemNew, 6);
             }
             else if (index == 594) // Phlog. TODO:
             {
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 1, 1, 0.9); // -10% damage penalty
+                TF2Items_SetAttribute(itemNew, 0, 1, 0.9); // -10% damage penalty
                 
-                TF2Items_SetNumAttributes(itemNew, 2);
+                TF2Items_SetNumAttributes(itemNew, 1);
             }
         }
         // Secondary.
@@ -1376,13 +1361,10 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             }
             else if (index == 595) // Manmelter.
             {
-                // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 783, 0.00); // Extinguishing teammates restores 0 health.
-
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 1, 348, 1.20); // 20% slower firing speed (hidden)
+                TF2Items_SetAttribute(itemNew, 0, 348, 1.20); // 20% slower firing speed (hidden)
                
-                TF2Items_SetNumAttributes(itemNew, 2);
+                TF2Items_SetNumAttributes(itemNew, 1);
             }
             else if (index == 740) // Scorch Shot.
             {
@@ -1402,14 +1384,13 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 1, 1.00); // -0% damage penalty
-                TF2Items_SetAttribute(itemNew, 1, 772, 1.00); // This weapon holsters 0% slower
-                TF2Items_SetAttribute(itemNew, 2, 2067, 0.00); // Mini-crits burning targets and extinguishes them. Damage increases based on remaining duration of afterburn. Killing blows on burning players grant a speed boost.
+                TF2Items_SetAttribute(itemNew, 1, 2067, 0.00); // Mini-crits burning targets and extinguishes them. Damage increases based on remaining duration of afterburn. Killing blows on burning players grant a speed boost.
 
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 3, 21, 0.5); // -50% damage vs non-burning players
-                TF2Items_SetAttribute(itemNew, 4, 638, 1.00); // 100% critical hits burning players from behind. Mini-crits burning players from the front.
+                TF2Items_SetAttribute(itemNew, 2, 21, 0.5); // -50% damage vs non-burning players
+                TF2Items_SetAttribute(itemNew, 3, 638, 1.00); // 100% critical hits burning players from behind. Mini-crits burning players from the front.
 
-                TF2Items_SetNumAttributes(itemNew, 5);
+                TF2Items_SetNumAttributes(itemNew, 4);
             }
             else if (index == 214) // Powerjack.
             {
@@ -1472,8 +1453,7 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
                 // Apply new attributes.
                 TF2Items_SetAttribute(itemNew, 0, 64, 0.60); // +40% explosive damage resistance on wearer
                 TF2Items_SetAttribute(itemNew, 1, 527, 1.00); // Immune to the effects of afterburn.
-                
-                // Afterburn immunity is dealt with in my old flamethrower mechanics plugin.
+
                 TF2Items_SetNumAttributes(itemNew, 2);
             }
             else if (index == 265) // Sticky Jumper.
@@ -1530,48 +1510,39 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
         }
         // Melee.
         {
-            if (StrEqual(class, "tf_weapon_sword")) // Stats for all swords.
+            if (index == 327) // Claidheamh Mòr.
             {
                 // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 781, 0.00); // This Weapon has a large melee range and deploys and holsters slower
+                TF2Items_SetAttribute(itemNew, 0, 128, 0.0); // When weapon is active:
+                TF2Items_SetAttribute(itemNew, 1, 412, 1.00); // 0% damage vulnerability on wearer
+                TF2Items_SetAttribute(itemNew, 2, 2034, 0.00); // Melee kills refill 0% of your charge meter.
 
-                TF2Items_SetNumAttributes(itemNew, 1);
+                // Apply new attributes.
+                TF2Items_SetAttribute(itemNew, 3, 125, -15.0); // -15 max health on wearer
 
-                if (index == 327) // Claidheamh Mòr.
-                {
-                    // Remove old attributes.
-                    TF2Items_SetAttribute(itemNew, 1, 128, 0.0); // When weapon is active:
-                    TF2Items_SetAttribute(itemNew, 2, 412, 1.00); // 0% damage vulnerability on wearer
-                    TF2Items_SetAttribute(itemNew, 3, 2034, 0.00); // Melee kills refill 0% of your charge meter.
+                TF2Items_SetNumAttributes(itemNew, 4);
+            }
+            else if (index == 404) // Persian Persuader.
+            {
+                // Remove old attributes.
+                TF2Items_SetAttribute(itemNew, 0, 77, 1.00); // -0% max primary ammo on wearer
+                TF2Items_SetAttribute(itemNew, 1, 79, 1.00); // -0% max secondary ammo on wearer
+                TF2Items_SetAttribute(itemNew, 2, 778, 0.00); // Melee hits refill 0% of your charge meter
+                TF2Items_SetAttribute(itemNew, 3, 781, 0.00); // This Weapon has a large melee range and deploys and holsters slower
+                TF2Items_SetAttribute(itemNew, 4, 782, 0.00); // Ammo boxes collected also give Charge
 
-                    // Apply new attributes.
-                    TF2Items_SetAttribute(itemNew, 4, 125, -15.0); // -15 max health on wearer
+                // Apply new attributes.
+                TF2Items_SetAttribute(itemNew, 5, 249, 2.00); // +100% increase in charge recharge rate
+                TF2Items_SetAttribute(itemNew, 6, 258, 1.00); // Ammo collected from ammo boxes becomes health.
 
-                    TF2Items_SetNumAttributes(itemNew, 5);
-                }
-                else if (index == 404) // Persian Persuader.
-                {
-                    // Remove old attributes.
-                    TF2Items_SetAttribute(itemNew, 1, 77, 1.00); // -0% max primary ammo on wearer
-                    TF2Items_SetAttribute(itemNew, 2, 79, 1.00); // -0% max secondary ammo on wearer
-                    TF2Items_SetAttribute(itemNew, 3, 778, 0.00); // Melee hits refill 0% of your charge meter
-                    TF2Items_SetAttribute(itemNew, 4, 781, 0.00); // This Weapon has a large melee range and deploys and holsters slower
-                    TF2Items_SetAttribute(itemNew, 5, 782, 0.00); // Ammo boxes collected also give Charge
+                // Ammo conversion to health attribute does not work as-is, handled separately in a DHook
 
-                    // Apply new attributes.
-                    TF2Items_SetAttribute(itemNew, 6, 249, 2.00); // +100% increase in charge recharge rate
-                    TF2Items_SetAttribute(itemNew, 7, 258, 1.00); // Ammo collected from ammo boxes becomes health.
-
-                    // Ammo conversion to health attribute does not work as-is, handled separately in a DHook
-
-                    TF2Items_SetNumAttributes(itemNew, 8);
-                }
+                TF2Items_SetNumAttributes(itemNew, 7);
             }
             else if (index == 307) // Ullapool Caber.
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 5, 1.00); // 0% slower firing speed
-                TF2Items_SetAttribute(itemNew, 1, 773, 1.00); // This weapon deploys 0% slower
 
                 TF2Items_SetNumAttributes(itemNew, 2);
             }
@@ -1651,14 +1622,13 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             if (index == 239 || index == 1084 || index == 1184 || index == 1100) // Gloves of Running Urgently.
             {
                 // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 772, 1.00); // This weapon holsters 0% slower
-                TF2Items_SetAttribute(itemNew, 1, 855, 0.00); // Maximum health is drained while item is active
+                TF2Items_SetAttribute(itemNew, 0, 855, 0.00); // Maximum health is drained while item is active
 
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 2, 1, 0.75); // -25% damage penalty
-                TF2Items_SetAttribute(itemNew, 3, 414, 3.00); // You are Marked-For-Death while active, and for short period after switching weapons
+                TF2Items_SetAttribute(itemNew, 1, 1, 0.75); // -25% damage penalty
+                TF2Items_SetAttribute(itemNew, 2, 414, 3.00); // You are Marked-For-Death while active, and for short period after switching weapons
 
-                TF2Items_SetNumAttributes(itemNew, 4);
+                TF2Items_SetNumAttributes(itemNew, 3);
             }
             else if (index == 310) // Warrior's Spirit.
             {
@@ -1675,14 +1645,13 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             else if (index == 331) // Fists of Steel.
             {
                 // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 772, 1.00); // This weapon holsters 0% faster
-                TF2Items_SetAttribute(itemNew, 1, 853, 1.00); // -0% maximum overheal on wearer
-                TF2Items_SetAttribute(itemNew, 2, 854, 1.00); // -0% health from healers on wearer
+                TF2Items_SetAttribute(itemNew, 0, 853, 1.00); // -0% maximum overheal on wearer
+                TF2Items_SetAttribute(itemNew, 1, 854, 1.00); // -0% health from healers on wearer
 
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 3, 177, 1.20); // 20% longer weapon switch
+                TF2Items_SetAttribute(itemNew, 2, 177, 1.20); // 20% longer weapon switch
 
-                TF2Items_SetNumAttributes(itemNew, 4);
+                TF2Items_SetNumAttributes(itemNew, 3);
             }
             else if (index == 426) // Eviction Notice.
             {
@@ -1823,14 +1792,7 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
         }
         // Secondary.
         {
-            if (index == 58 || index == 1083 || index == 554 || index == 1105) // Jarate.
-            {
-                // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 784, 0.00); // Extinguishing teammates reduces cooldown by 0%
-
-                TF2Items_SetNumAttributes(itemNew, 1);
-            }
-            else if (index == 57) // Razorback.
+            if (index == 57) // Razorback.
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 800, 1.00); // -0% maximum overheal on wearer
@@ -2048,7 +2010,30 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
     return Plugin_Changed;
 }
 
-public void TF2Items_OnGiveNamedItem_Post(int client, char[] class, int index, int level, int quality, int entity) {
+public void TF2Items_OnGiveNamedItem_Post(int client, char[] class, int index, int level, int quality, int entity)
+{
+    // Remove 'blanket' post-Gun Mettle attributes
+    if (TF2Attrib_GetByDefIndex(entity, 772) != Address_Null)
+    {
+        TF2Attrib_SetByDefIndex(entity, 772, 1.00); // This weapon holsters 0% slower
+    }
+    else if (TF2Attrib_GetByDefIndex(entity, 773) != Address_Null)
+    {
+        TF2Attrib_SetByDefIndex(entity, 773, 1.00); // This weapon deploys 0% slower
+    }
+    else if (TF2Attrib_GetByDefIndex(entity, 781) != Address_Null)
+    {
+        TF2Attrib_SetByDefIndex(entity, 781, 0.00); // This Weapon has a large melee range and deploys and holsters slower
+    }
+    else if (TF2Attrib_GetByDefIndex(entity, 783) != Address_Null)
+    {
+        TF2Attrib_SetByDefIndex(entity, 783, 0.00); // Extinguishing teammates restores 0 health.
+    }
+    else if (TF2Attrib_GetByDefIndex(entity, 784) != Address_Null)
+    {
+        TF2Attrib_SetByDefIndex(entity, 784, 0.00); // Extinguishing teammates reduces cooldown by 0%
+    }
+
     if (index == 220) // Shortstop: use secondary ammo.
     {
 		SetEntProp(entity, Prop_Send, "m_iPrimaryAmmoType", SCOUT_PISTOL_AMMO_TYPE);
@@ -2908,21 +2893,31 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         damage = 60.00;
         returnValue = Plugin_Changed;
     }
-    else if ((inflictorIndex == 228 || inflictorIndex == 1085) && attacker != victim && TF2_GetClientTeam(attacker) != TF2_GetClientTeam(victim)) // Black Box hit.
-    {
-        // Show that attacker got healed.
-        Handle event = CreateEvent("player_healonhit", true);
-        SetEventInt(event, "amount", 15);
-        SetEventInt(event, "entindex", attacker);
-        FireEvent(event);
-
-        // Take health.
-        TF2Util_TakeHealth(attacker, 15.0);
-    }
 
     // weapon-specific code
     if (IsValidEntity(weapon)) 
     {
+        if ( // Heal on hit.
+            attacker != victim &&
+            TF2_GetClientTeam(attacker) != TF2_GetClientTeam(victim) &&
+            !TF2_IsPlayerInCondition(victim, TFCond_Disguised) &&
+            !IsInvulnerable(victim)
+        ) {
+            int heal = TF2Attrib_HookValueInt(0, "add_onhit_addhealth", weapon);
+            if (heal) {
+                // "selfdmg on hit for rapidfire", unused attribute, is removed in OnTakeDamagePost
+                TF2Attrib_SetByDefIndex(weapon, 98, -float(heal));
+
+                // Show that attacker got healed.
+                Event event = CreateEvent("player_healonhit", true);
+                event.SetInt("amount", heal);
+                event.SetInt("entindex", attacker);
+                event.Fire();
+
+                // Add health.
+                TF2Util_TakeHealth(attacker, float(heal));
+            }
+        }
         if ( // Weapons that can mini-crit.
             (
                 // Reserve Shooter.
@@ -3154,6 +3149,11 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
     int victimActiveWeapon = GetEntPropEnt(victim, Prop_Send, "m_hActiveWeapon");
     if (IsValidEntity(weapon))
     {
+        // remove "selfdmg on hit for rapidfire"
+        if (TF2Attrib_GetByDefIndex(weapon, 98) != Address_Null) {
+            TF2Attrib_RemoveByDefIndex(weapon, 98);
+        }
+
         int index = GetWeaponIndex(weapon);
         if (!IsPlayerAlive(victim))
         {
@@ -3377,7 +3377,6 @@ MRESReturn GetMinigunDamage(int entity, DHookReturn returnValue)
 
 MRESReturn GetBazaarBargainChargeRate(int entity, DHookReturn returnValue)
 {
-    // I am not entirely sure whether this is correct or not. Might consider installing SourceMod on one of my older builds of TF2.
     // Change the recharge rate for the Bazaar Bargain.
     returnValue.Value = 0.2 * (intMin(GetEntProp(allEntities[entity].Owner, Prop_Send, "m_iDecapitations"), MAX_HEAD_BONUS) - 1) * TF_WEAPON_SNIPERRIFLE_CHARGE_PER_SEC;
     return MRES_Supercede;
@@ -3424,25 +3423,29 @@ MRESReturn CommandRepair(int entity, DHookReturn returnValue, DHookParam paramet
 MRESReturn StartBuilding(int entity, DHookReturn returnValue, DHookParam parameters)
 {
     if (GetEntProp(entity, Prop_Send, "m_bMiniBuilding")) // Mini sentries always start off at max health.
-        WriteToValue(GetEntityAddress(entity) + CBaseObject_m_flHealth, 100.00);
+        SetEntDataFloat(entity, CBaseObject_m_flHealth, float(GetEntProp(entity, Prop_Send, "m_iMaxHealth")));
     return MRES_Ignored;
 }
 
 MRESReturn PreConstructBuilding(int entity, DHookReturn returnValue, DHookParam parameters)
 {
-    allEntities[entity].BuildingHealth = Dereference(GetEntityAddress(entity) + CBaseObject_m_flHealth);
+    allEntities[entity].BuildingHealth = GetEntDataFloat(entity, CBaseObject_m_flHealth);
     return MRES_Ignored;
 }
 
 MRESReturn PostConstructBuilding(int entity, DHookReturn returnValue, DHookParam parameters)
 {
-    Address m_flHealth = GetEntityAddress(entity) + CBaseObject_m_flHealth;
-    if (GetEntProp(entity, Prop_Send, "m_bMiniBuilding")) // Prevent mini sentries from gaining health while being built. Usually only an issue if the building has been damaged during construction time.
+    // Prevent mini sentries from gaining health while being built. Usually only an issue if the building has been damaged during construction time.
+    if (GetEntProp(entity, Prop_Send, "m_bMiniBuilding"))
     {
+        float m_flHealth = GetEntDataFloat(entity, CBaseObject_m_flHealth);
+
         if (SDKCall(SDKCall_CBaseObject_GetReversesBuildingConstructionSpeed, entity))
-            WriteToValue(m_flHealth, view_as<float>(Dereference(m_flHealth)) + GetBuildingConstructionMultiplier_NoHook(entity) * 0.5);
+            m_flHealth + GetBuildingConstructionMultiplier_NoHook(entity) * 0.5;
         else
-            WriteToValue(m_flHealth, allEntities[entity].BuildingHealth);
+            m_flHealth = allEntities[entity].BuildingHealth;
+
+        SetEntDataFloat(entity, CBaseObject_m_flHealth, m_flHealth);
     }
     return MRES_Ignored;
 }
@@ -4124,6 +4127,38 @@ public Action SoundPlayed(int clients[MAXPLAYERS], int& numClients, char sample[
 int LoadEntityHandleFromAddress(Address addr) // From nosoop's stocksoup framework.
 {
     return EntRefToEntIndex(LoadFromAddress(addr, NumberType_Int32) | (1 << 31));
+}
+
+int GetEntityFromAddress(Address pEntity) // From nosoop's stocksoup framework.
+{
+    static int offs_RefEHandle;
+    if (offs_RefEHandle) 
+    {
+        return LoadEntityHandleFromAddress(pEntity + view_as<Address>(offs_RefEHandle));
+    }
+
+    // if we don't have it already, attempt to lookup offset based on SDK information
+    // CWorld is derived from CBaseEntity so it should have both offsets
+    int offs_angRotation = FindDataMapInfo(0, "m_angRotation"), offs_vecViewOffset = FindDataMapInfo(0, "m_vecViewOffset");
+    if (offs_angRotation == -1) 
+    {
+        ThrowError("Could not find offset for ((CBaseEntity) CWorld)::m_angRotation");
+    }
+    else if (offs_vecViewOffset == -1) 
+    {
+        ThrowError("Could not find offset for ((CBaseEntity) CWorld)::m_vecViewOffset");
+    } 
+    else if ((offs_angRotation + 0x0C) != (offs_vecViewOffset - 0x04)) 
+    {
+        char game[32];
+        GetGameFolderName(game, sizeof(game));
+        ThrowError("Could not confirm offset of CBaseEntity::m_RefEHandle "
+                ... "(incorrect assumption for game '%s'?)", game);
+    }
+
+    // offset seems right, cache it for the next call
+    offs_RefEHandle = offs_angRotation + 0x0C;
+    return GetEntityFromAddress(pEntity);
 }
 
 any Dereference(Address address, NumberType bitdepth = NumberType_Int32)
