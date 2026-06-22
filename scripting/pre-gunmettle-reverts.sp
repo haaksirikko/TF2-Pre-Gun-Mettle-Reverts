@@ -89,8 +89,6 @@
 
 #define MODEL_PRECACHE_TABLENAME "modelprecache"
 
-#define TF_BURNING_FLAME_LIFE_PYRO	0.25		// pyro only displays burning effect momentarily
-
 #define PLUGIN_NAME "pre-gunmettle-reverts"
 
 DynamicHook DHooks_GetRadius;
@@ -239,13 +237,13 @@ int intMax(int x, int y)
 }
 
 // Get the smaller floating point value.
-float min(float x, float y)
+float floatMin(float x, float y)
 {
     return x > y ? y : x;
 }
 
 // Get the larger floating point value.
-float max(float x, float y)
+float floatMax(float x, float y)
 {
     return x > y ? x : y;
 }
@@ -2400,7 +2398,7 @@ public void ClientSpawn(Event event, const char[] name, bool dontBroadcast)
     int client = GetClientOfUserId(event.GetInt("userid"));
     allPlayers[client].WeaponSwitchTime = GetGameTime();
     if (DoesPlayerHaveItem(client, 173) && allPlayers[client].HadVitaSawEquipped) // Give up to 20% Uber back with the Vita-Saw.
-        SetEntPropFloat(DoesPlayerHaveItemByClass(client, "tf_weapon_medigun"), Prop_Send, "m_flChargeLevel", min(0.2, allPlayers[client].CurrentUber));
+        SetEntPropFloat(DoesPlayerHaveItemByClass(client, "tf_weapon_medigun"), Prop_Send, "m_flChargeLevel", floatMin(0.2, allPlayers[client].CurrentUber));
     else
         allPlayers[client].CurrentUber = 0.00;
 }
@@ -2644,7 +2642,7 @@ public void OnGameFrame()
                 float speed[3];
                 GetEntPropVector(i, Prop_Data, "m_vecVelocity", speed);
                 float newHype = GetVectorLength(speed) * TICK_RATE_PRECISION / GetConVarFloat(tf_scout_hype_mod) + GetEntPropFloat(i, Prop_Send, "m_flHypeMeter");
-                SetEntPropFloat(i, Prop_Send, "m_flHypeMeter", min(100.00, newHype));
+                SetEntPropFloat(i, Prop_Send, "m_flHypeMeter", floatMin(100.00, newHype));
             }
 
             // Prevent long-range shots from reducing recharge time with the Flying Guillotine. I'll see if I can find a more convenient method than this.
@@ -2944,7 +2942,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         TF2_RemoveCondition(victim, TFCond_Dazed); // TF2_StunPlayer just sets TFCond_Dazed again anyway.
 
         // We have a more intense stun based on our travel time.
-        float flLifeTime = min(GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp, FLIGHT_TIME_TO_MAX_STUN);
+        float flLifeTime = floatMin(GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp, FLIGHT_TIME_TO_MAX_STUN);
         float flLifeTimeRatio = flLifeTime / FLIGHT_TIME_TO_MAX_STUN;
         if (flLifeTimeRatio > 0.1)
         {
@@ -3015,7 +3013,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
             float base_damage = (TF2Attrib_HookValueInt(0, "energy_weapon_penetration", weapon) != 0) ? 16.00 : 48.00;
 
             // Deal base damage with 125% rampup, 75% falloff.
-            damage = base_damage * RemapValClamped(min(0.35, GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp), 0.35 / 2, 0.35, 1.25, 0.75);
+            damage = base_damage * RemapValClamped(floatMin(0.35, GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp), 0.35 / 2, 0.35, 1.25, 0.75);
 
             // Pomson charge drains handled in AfterClientDamaged.
             returnValue = Plugin_Changed;
@@ -3167,7 +3165,7 @@ MRESReturn OnTakeDamageAlive(int entity, DHookReturn returnValue, DHookParam par
                                 allPlayers[i].VaccinatorCharge -= 0.75;
                             else if (damagetype & DMG_IGNITE)
                                 allPlayers[i].VaccinatorCharge -= 0.01;
-                            SetEntPropFloat(vaccinator, Prop_Send, "m_flChargeLevel", max(0.00, allPlayers[i].VaccinatorCharge));
+                            SetEntPropFloat(vaccinator, Prop_Send, "m_flChargeLevel", floatMax(0.00, allPlayers[i].VaccinatorCharge));
                             WriteToValue(info + CTakeDamageInfo_m_eCritType, CRIT_NONE);
                             WriteToValue(info + CTakeDamageInfo_m_bitsDamageType, damagetype & ~DMG_CRIT);
                             if (crit == CRIT_MINI)
@@ -3288,7 +3286,7 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
     if (allPlayers[victim].FeigningDeath) // Dead Ringer damage tracking.
         allPlayers[victim].DamageTakenDuringFeign += damage;
     if (allPlayers[victim].TicksSinceFeignReady == GetGameTickCount()) // Set the cloak meter to 100 when feigning.
-        SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", min(GetEntPropFloat(victim, Prop_Send, "m_flCloakMeter") + 50.00, 100.00));
+        SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", floatMin(GetEntPropFloat(victim, Prop_Send, "m_flCloakMeter") + 50.00, 100.00));
 
 }
 
@@ -3797,7 +3795,7 @@ MRESReturn AddToCloak(Address thisPointer, DHookReturn returnValue, DHookParam p
     int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     if (DoesPlayerHaveItem(client, 59)) // Only gain up to 35% cloak with the Dead Ringer.
     {
-        parameters.Set(1, min(view_as<float>(parameters.Get(1)), 35.00)); // Force "val" to be no larger than 35.
+        parameters.Set(1, floatMin(view_as<float>(parameters.Get(1)), 35.00)); // Force "val" to be no larger than 35.
         return MRES_ChangedHandled;
     }
     return MRES_Ignored;
