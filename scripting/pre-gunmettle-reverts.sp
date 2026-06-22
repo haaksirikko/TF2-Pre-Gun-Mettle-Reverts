@@ -134,7 +134,6 @@ DynamicDetour DHooks_CTFPlayerShared_CanRecieveMedigunChargeEffect;
 DynamicDetour DHooks_CTFWeaponBaseMelee_OnSwingHit;
 DynamicDetour DHooks_CTFMinigun_SharedAttack;
 DynamicDetour CTFWearable_CTFWearable_Break;
-DynamicDetour DHooks_CTFWearableDemoShield_ShieldBash;
 DynamicDetour DHooks_CTFLunchBox_ApplyBiteEffects;
 DynamicDetour DHooks_CTFLunchBox_DrainAmmo;
 DynamicDetour DHooks_CWeaponMedigun_FindAndHealTargets;
@@ -574,7 +573,6 @@ enum struct Player
 
     // Shields.
     float TimeSinceShieldBash;
-    bool ChargeBashHitPlayer;
     bool GiveChargeOnKill;
     int TicksSinceCharge;
 
@@ -854,7 +852,6 @@ public void OnPluginStart()
     DHooks_CTFWeaponBaseMelee_OnSwingHit = DynamicDetour.FromConf(config, "CTFWeaponBaseMelee::OnSwingHit");
     DHooks_CTFMinigun_SharedAttack = DynamicDetour.FromConf(config, "CTFMinigun::SharedAttack");
     CTFWearable_CTFWearable_Break = DynamicDetour.FromConf(config, "CTFWearable::Break");
-    DHooks_CTFWearableDemoShield_ShieldBash = DynamicDetour.FromConf(config, "CTFWearableDemoShield::ShieldBash");
     DHooks_CTFLunchBox_ApplyBiteEffects = DynamicDetour.FromConf(config, "CTFLunchBox::ApplyBiteEffects");
     DHooks_CTFLunchBox_DrainAmmo = DynamicDetour.FromConf(config, "CTFLunchBox::DrainAmmo");
     DHooks_CWeaponMedigun_FindAndHealTargets = DynamicDetour.FromConf(config, "CWeaponMedigun::FindAndHealTargets");
@@ -887,7 +884,6 @@ public void OnPluginStart()
     DHooks_CTFWeaponBaseMelee_OnSwingHit.Enable(Hook_Pre, OnMeleeSwingHit);
     DHooks_CTFMinigun_SharedAttack.Enable(Hook_Pre, OnMinigunSharedAttack);
     CTFWearable_CTFWearable_Break.Enable(Hook_Post, BreakRazorback);
-    DHooks_CTFWearableDemoShield_ShieldBash.Enable(Hook_Pre, OnShieldBash);
     DHooks_CTFLunchBox_ApplyBiteEffects.Enable(Hook_Pre, ApplyBiteEffects);
     DHooks_CTFLunchBox_DrainAmmo.Enable(Hook_Pre, RemoveSandvichAmmo);
     DHooks_CWeaponMedigun_FindAndHealTargets.Enable(Hook_Pre, PreFindAndHealTarget);
@@ -3071,7 +3067,9 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         }
         if (damagecustom == TF_CUSTOM_CHARGE_IMPACT) // Charge impact damage.
         {
-             // Do not deal charge damage if the user's charge meter is still higher than 40.00 and they aren't using the Splendid Screen.
+            allPlayers[attacker].TimeSinceShieldBash = GetGameTime();
+
+            // Do not deal charge damage if the user's charge meter is still higher than 40.00 and they aren't using the Splendid Screen.
             if (!TF2Attrib_HookValueInt(0, "no_charge_impact_range", attacker) && GetEntPropFloat(attacker, Prop_Send, "m_flChargeMeter") > 40.00)
                 return Plugin_Handled;
 
@@ -3386,7 +3384,7 @@ MRESReturn WeaponPrimaryFire(int entity)
     else if (entity == GetPlayerWeaponSlot(owner, TFWeaponSlot_Melee)) // Charge on charge kill.
     {
         allPlayers[owner].GiveChargeOnKill = false;
-        if (GetGameTime() - allPlayers[owner].TimeSinceShieldBash < 0.5 || TF2_IsPlayerInCondition(owner, TFCond_Charging))
+        if (GetGameTime() - allPlayers[owner].TimeSinceShieldBash < 0.3 || TF2_IsPlayerInCondition(owner, TFCond_Charging))
             allPlayers[owner].GiveChargeOnKill = true;
     }
     else if (index == 528) // Short Circuit projectile removal. Most of the code is sampled from the post-Gun Mettle Short Circuit alt-fire.
@@ -3801,7 +3799,7 @@ MRESReturn RemoveCondition(Address thisPointer, DHookParam parameters)
 MRESReturn CalculateChargeCrit(Address thisPointer, DHookParam parameters)
 {
     int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
-    if (GetGameTime() - allPlayers[client].TimeSinceShieldBash < 0.5 && allPlayers[client].ChargeBashHitPlayer)
+    if (GetGameTime() - allPlayers[client].TimeSinceShieldBash < 0.3)
     {
         parameters.Set(1, true); // Set bForceCrit to true, so that the player's melee weapon will always crit on shield bash.
         return MRES_ChangedHandled;
@@ -3888,49 +3886,6 @@ MRESReturn BreakRazorback(int entity)
 {
     if (GetWeaponIndex(entity) == 57) // Delete the Razorback entirely. This is basically how the old Razorback functioned.
         RemoveEntity(entity);
-    return MRES_Ignored;
-}
-
-MRESReturn OnShieldBash(int entity)
-{
-    /*
-    Vector vecForward; 
-	AngleVectors( pOwner->EyeAngles(), &vecForward );
-	Vector vecStart = pOwner->Weapon_ShootPosition();
-	Vector vecEnd = vecStart + vecForward * 48;
-
-	// See if we hit anything.
-	trace_t trace;
-	UTIL_TraceHull( vecStart, vecEnd, -Vector(24,24,24), Vector(24,24,24),
-		MASK_SOLID, pOwner, COLLISION_GROUP_NONE, &trace );
-    */
-
-    // Set charge bash.
-    int client = allEntities[entity].Owner;
-    allPlayers[client].TimeSinceShieldBash = GetGameTime();
-    allPlayers[client].ChargeBashHitPlayer = false;
-
-    // Set up vectors and set up a trace.
-    float vecEyeAngles[3];
-    float vecForward[3];
-    float vecStart[3];
-    float vecEnd[3];
-    float vecMin[3] = {-24.00, -24.00, -24.00};
-    float vecMax[3] = {24.00, 24.00, 24.00};
-
-    GetClientEyeAngles(client, vecEyeAngles);
-    GetAngleVectors(vecEyeAngles, vecForward, NULL_VECTOR, NULL_VECTOR);
-    GetClientEyePosition(client, vecStart);
-    ScaleVector(vecForward, 48.00);
-    AddVectors(vecStart, vecForward, vecEnd);
-    Handle trace = TR_TraceHullFilterEx(vecStart, vecEnd, vecMin, vecMax, MASK_SOLID, TR_CheckForTargetPlayer, client);
-
-    // Check if we hit a player.
-    int player = TR_GetEntityIndex(trace);
-    if (TR_DidHit(trace) && player > 0 && player <= MaxClients)
-        allPlayers[client].ChargeBashHitPlayer = true;
-    
-    delete trace;
     return MRES_Ignored;
 }
 
