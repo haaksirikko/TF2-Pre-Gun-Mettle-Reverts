@@ -3072,13 +3072,12 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         if (damagecustom == TF_CUSTOM_CHARGE_IMPACT) // Charge impact damage.
         {
              // Do not deal charge damage if the user's charge meter is still higher than 40.00 and they aren't using the Splendid Screen.
-            if (index != 406 && GetEntPropFloat(attacker, Prop_Send, "m_flChargeMeter") > 40.00)
+            if (!TF2Attrib_HookValueInt(0, "no_charge_impact_range", attacker) && GetEntPropFloat(attacker, Prop_Send, "m_flChargeMeter") > 40.00)
                 return Plugin_Handled;
 
             // Set the charge impact damage. Previously it did not have rampup.
-            damage = 50 * (1.0 + intMin(GetEntProp(attacker, Prop_Send, "m_iDecapitations"), 5) * 0.2);
-            if (index == 406) // Increase charge damage by 70%. I should probably find a way to hook onto attributes without hardcoding numbers.
-                damage *= 1.7;
+            damage = 50.0 + 10.0 * intMin(GetEntProp(attacker, Prop_Send, "m_iDecapitations"), 5);
+            damage *= TF2Attrib_HookValueFloat(1.0, "charge_impact_damage", attacker);
             
             returnValue = Plugin_Changed;
         }
