@@ -618,6 +618,9 @@ enum struct Player
     // Bazaar Bargain.
     BazaarBargainShotManager BazaarBargainShot;
 
+    // Spy-cicle.
+    int FireproofFrame;
+
     // Dead Ringer.
     bool FeigningDeath;
     int TicksSinceFeignReady;
@@ -1951,11 +1954,11 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             else if (index == 356) // Conniver's Kunai.
             {
                 // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 1, 125, -65.00); // -65 max health on wearer
-                TF2Items_SetAttribute(itemNew, 2, 217, 0.00); // On Backstab: Absorbs the health from your victim.
+                TF2Items_SetAttribute(itemNew, 0, 125, -65.00); // -65 max health on wearer
+                TF2Items_SetAttribute(itemNew, 1, 217, 0.00); // On Backstab: Absorbs the health from your victim.
 
                 // Healing is handled separately, the regular kunai attribute has a minimum health gain of +75.
-                TF2Items_SetNumAttributes(itemNew, 3);
+                TF2Items_SetNumAttributes(itemNew, 2);
             }
             else if (index == 461) // Big Earner. (lol rip in pepperoni)
             {
@@ -1966,15 +1969,11 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             }
             else if (index == 649) // Spy-cicle.
             {
-                // Remove old attributes.
-                TF2Items_SetAttribute(itemNew, 0, 361, 0.00); // On Hit by Fire: Fireproof for 1 second and Afterburn immunity for 0 seconds (might be worth just using this but checking if fire immunity is present, then overwriting fire immunity condiiton.)
-                TF2Items_SetAttribute(itemNew, 1, 359, 0.00); // Melts in fire, regenerates in 0 seconds and by picking up ammo
-
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 2, 156, 1.00); // Silent Killer: No attack noise from backstabs
+                TF2Items_SetAttribute(itemNew, 0, 156, 1.00); // Silent Killer: No attack noise from backstabs
+                TF2Items_SetAttribute(itemNew, 1, 361, 2.00); // On Hit by Fire: Fireproof for 1 second and Afterburn immunity for 2 seconds
 
-                // Weapon melting and fire immmunity is handled separately.
-                TF2Items_SetNumAttributes(itemNew, 3);
+                TF2Items_SetNumAttributes(itemNew, 2);
             }
         }
         // Secondary PDA.
@@ -3260,21 +3259,6 @@ Action ClientDamagedAlive(int victim, int &attacker, int &inflictor, float &dama
 void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, int damagetype, int weapon, const float damageForce[3], const float damagePosition[3], int damagecustom)
 {
     int victimActiveWeapon = GetEntPropEnt(victim, Prop_Send, "m_hActiveWeapon");
-    if (IsValidEntity(victimActiveWeapon) && GetWeaponIndex(victimActiveWeapon) == 649 && damagetype & (DMG_IGNITE | DMG_BURN)) // Spy-cicle fire immunity.
-    {
-        // Add immunity.
-        TF2_RemoveCondition(victim, TFCond_OnFire);
-        TF2_AddCondition(victim, TFCond_FireImmune, 2.00);
-        EmitSoundToAll("weapons\\icicle_melt_01.wav", victim, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_CHANGEVOL | SND_CHANGEPITCH);
-
-        // Manually modify network properties. (I wrote this code before I had my addcond DHook so...)
-        SetEntPropFloat(victimActiveWeapon, Prop_Send, "m_flKnifeMeltTimestamp", GetGameTime());
-        SetEntPropFloat(victimActiveWeapon, Prop_Send, "m_flKnifeRegenerateDuration", 15.00);
-        SetEntProp(victimActiveWeapon, Prop_Send, "m_bKnifeExists", false);
-        
-        // Finally, holster the Spy-cicle!
-        ClientCommand(victim, "slot2"); // Equip the sapper. Probably should SDKCall Weapon_Switch instead and use the sapper entity.
-    }
     if (IsValidEntity(weapon))
     {
         int index = GetWeaponIndex(weapon);
@@ -3797,6 +3781,13 @@ MRESReturn AddCondition(Address thisPointer, DHookParam parameters)
         allPlayers[client].TimeSinceScoping = GetGameTime();
     else if (condition == TFCond_Dazed && allPlayers[client].TicksSinceBonkEnd == GetGameTickCount()) // Do not suffer from BONK! slowdown.
         return MRES_Supercede;
+    else if (condition == TFCond_FireImmune && parameters.Get(2) == 1.0) {
+        allPlayers[client].FireproofFrame = GetGameTickCount();
+    }
+    else if (condition == TFCond_AfterburnImmune && allPlayers[client].FireproofFrame == GetGameTickCount()) {
+        parameters.Set(1, TFCond_FireImmune);
+        return MRES_ChangedHandled;
+    }
     return MRES_Ignored;
 }
 
