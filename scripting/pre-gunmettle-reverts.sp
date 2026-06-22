@@ -38,7 +38,6 @@
 #define TICK_RATE_PRECISION GetTickInterval()
 #define MAX_ENTITY_COUNT 2048
 #define MAX_WEAPON_COUNT 10
-#define MAX_SHORTSTOP_CLIP 4
 #define SCOUT_PISTOL_AMMO_TYPE 2
 
 #define FLIGHT_TIME_TO_MAX_STUN	1.0
@@ -553,10 +552,6 @@ enum struct Player
     int StunInflictor;
     
     int Weapons[MAX_WEAPON_COUNT];
-
-    // Shortstop.
-    int PrimaryAmmo;
-    int SecondaryAmmo;
 
     // Flying Guillotine.
     float CleaverChargeMeter;
@@ -1118,7 +1113,6 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
                 TF2Items_SetAttribute(itemNew, 1, 534, 1.4); // 40% reduction in airblast vulnerability (hidden)
                 TF2Items_SetAttribute(itemNew, 2, 535, 1.4); // 40% increase in push force taken from damage (hidden)
 
-                // Using secondary ammo is handled separately.
                 TF2Items_SetNumAttributes(itemNew, 3);
             }
             else if (index == 448) // Soda Popper.
@@ -1875,8 +1869,9 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
                 // Apply new attributes.
                 TF2Items_SetAttribute(itemNew, 2, 5, 1.35); // -35% slower firing speed
                 TF2Items_SetAttribute(itemNew, 3, 613, 8.00); // On Kill: Gain Mini-crits for 8 seconds.
+                TF2Items_SetAttribute(itemNew, 4, 798, 1.10); // +10% damage vulnerability while active
 
-                TF2Items_SetNumAttributes(itemNew, 4);
+                TF2Items_SetNumAttributes(itemNew, 5);
             }
         }
         // Melee.
@@ -2052,6 +2047,13 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
     return Plugin_Changed;
 }
 
+public void TF2Items_OnGiveNamedItem_Post(int client, char[] class, int index, int level, int quality, int entity) {
+    if (index == 220) // Shortstop: use secondary ammo.
+    {
+		SetEntProp(entity, Prop_Send, "m_iPrimaryAmmoType", SCOUT_PISTOL_AMMO_TYPE);
+	}
+}
+
 int DoesPlayerHaveItem(int player, int index)
 {
     if (!IsClientInGame(player))
@@ -2087,18 +2089,6 @@ int DoesPlayerHaveItemByClass(int player, char[] class)
             return entity;
     }
     return 0;
-}
-
-void SetWeaponAmmoReserve(int entity, int ammo) 
-{
-	SetEntProp(allEntities[entity].Owner, Prop_Send, "m_iAmmo", ammo, 4, GetEntProp(entity, Prop_Send, "m_iPrimaryAmmoType"));
-}
-
-int GetWeaponAmmoReserve(int entity, int ammoType = -1)
-{
-    if (ammoType == -1)
-        ammoType = GetEntProp(entity, Prop_Send, "m_iPrimaryAmmoType");
-    return GetEntProp(allEntities[entity].Owner, Prop_Send, "m_iAmmo", 4, ammoType);
 }
 
 void RegisterToWeaponList(int client, int entity)
@@ -2596,18 +2586,16 @@ public void OnGameFrame()
         {
             int activeWeapon = GetEntPropEnt(i, Prop_Send, "m_hActiveWeapon");
             int doesHaveWeapon;
-            int secondaryWeapon = GetPlayerWeaponSlot(i, TFWeaponSlot_Secondary);
 
             // BONK! consumption.
             if (TF2_IsPlayerInCondition(i, TFCond_Bonked))
                 allPlayers[i].TickSinceBonk = GetGameTickCount();
 
-            // Shortstop push prevention and ammo management. The push prevention doesn't really account for after finishing reload. The DHook I have doesn't account for client prediction either. I'll figure something out eventually.
+            // Shortstop push prevention. The push prevention doesn't really account for after finishing reload. The DHook I have doesn't account for client prediction either. I'll figure something out eventually.
             doesHaveWeapon = DoesPlayerHaveItem(i, 220);
-            if (doesHaveWeapon && secondaryWeapon != -1 && GetEntProp(secondaryWeapon, Prop_Send, "m_iPrimaryAmmoType") == SCOUT_PISTOL_AMMO_TYPE)
+            if (doesHaveWeapon)
             {
                 SetEntPropFloat(doesHaveWeapon, Prop_Send, "m_flNextSecondaryAttack", GetGameTime() + 1.00);
-                SetWeaponAmmoReserve(doesHaveWeapon, GetWeaponAmmoReserve(secondaryWeapon));  
             }
 
             // Soda Popper hype meter buildup.
@@ -3281,12 +3269,6 @@ MRESReturn GetProjectileExplosionRadius(int entity, DHookReturn returnValue)
 
 MRESReturn WeaponReloaded(int entity)
 {
-    int secondaryWeapon = GetPlayerWeaponSlot(allEntities[entity].Owner, TFWeaponSlot_Secondary);
-    if (secondaryWeapon != -1 && GetWeaponIndex(entity) == 220 && GetEntProp(secondaryWeapon, Prop_Send, "m_iPrimaryAmmoType") == SCOUT_PISTOL_AMMO_TYPE) // Shortstop using secondary ammo reserve.
-    {
-        int newAmmo = GetWeaponAmmoReserve(entity) - (MAX_SHORTSTOP_CLIP - GetEntProp(entity, Prop_Send, "m_iClip1"));
-        SetWeaponAmmoReserve(secondaryWeapon, intMax(newAmmo, 0));
-    }
     return MRES_Ignored;
 }
 
