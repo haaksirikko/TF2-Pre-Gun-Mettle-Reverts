@@ -3286,21 +3286,21 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
         if (!IsPlayerAlive(victim))
         {
             int heal_on_kill = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
-            if (heal_on_kill > 0) // Powerjack kill.
+            if (heal_on_kill) // Powerjack kill.
             {
                 allPlayers[attacker].HealOnKillFrame = GetGameTickCount();
                 allPlayers[attacker].HealOnKillAmount = heal_on_kill;
             }
             if (index == 356 && damagecustom == TF_CUSTOM_BACKSTAB) // Conniver's Kunai backstab.
             {
-                // Show that attacker got healed.
-                Handle event = CreateEvent("player_healonhit", true);
-                SetEventInt(event, "amount", intMin(KUNAI_OVERHEAL - allPlayers[attacker].OldHealth, allPlayers[victim].HealthBeforeKill));
-                SetEventInt(event, "entindex", attacker);
-                FireEvent(event);
-
-                // Set health.
-                SetEntityHealth(attacker, intMin(allPlayers[attacker].OldHealth + allPlayers[victim].HealthBeforeKill, KUNAI_OVERHEAL));
+				int heal_amt = intMin(allPlayers[victim].HealthBeforeKill, KUNAI_OVERHEAL - allPlayers[attacker].OldHealth);
+				if (heal_amt > 0) {
+					// Show that attacker got healed.
+					Handle event = CreateEvent("player_healonhit", true);
+					SetEventInt(event, "amount", TF2Util_TakeHealth(attacker, float(heal_amt)));
+					SetEventInt(event, "entindex", attacker);
+					FireEvent(event);
+				}
             }
             if (((weapon == GetPlayerWeaponSlot(attacker, TFWeaponSlot_Melee) && allPlayers[attacker].GiveChargeOnKill) || damagecustom == TF_CUSTOM_CHARGE_IMPACT) && DoesPlayerHaveItemByClass(attacker, "tf_wearable_demoshield")) // Award charge on charge kill.
                 RequestFrame(RewardChargeOnChargeKill, attacker);
