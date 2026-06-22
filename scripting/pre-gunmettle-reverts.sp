@@ -616,10 +616,6 @@ enum struct Player
     float DamageTakenDuringFeign;
     bool UnderFeignBuffs;
 
-    // Powerjack.
-    int HealOnKillFrame;
-    int HealOnKillAmount;
-
     // Weapon models.
     int CurrentViewmodel;
     int CurrentArmsViewmodel;
@@ -2500,6 +2496,26 @@ void NextFrameApplyViewmodelsToPlayer(int client)
     ApplyViewmodelsToPlayer(client);
 }
 
+void ApplyOverhealOnKill(int weapon) {
+	int owner = allEntities[weapon].Owner;
+
+	if (owner >= 1 && owner <= MaxClients) {
+		int max_overheal = TF2Util_GetPlayerMaxHealthBoost(owner);
+		int health_cur = GetClientHealth(owner);
+
+		int heal_amt = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
+		heal_amt = intMin(
+			max_overheal - health_cur,
+			heal_amt - (health_cur - allPlayers[owner].OldHealth)
+		);
+
+		if (heal_amt) {
+			// Apply overheal
+			TF2Util_TakeHealth(owner, float(heal_amt), TAKEHEALTH_IGNORE_MAXHEALTH);
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // FORWARDS                                                                 //
 //////////////////////////////////////////////////////////////////////////////
@@ -2734,26 +2750,6 @@ public void OnGameFrame()
                 GetFeignBuffsEnd(i) < GetGameTickCount()
             ) {
                 allPlayers[i].UnderFeignBuffs = false;
-            }
-
-            if (allPlayers[i].HealOnKillFrame + 1 == GetGameTickCount())
-            {
-                int max_overheal = TF2Util_GetPlayerMaxHealthBoost(i);
-                int health_cur = GetClientHealth(i);
-                int health_max = allPlayers[i].MaxHealth;
-                int heal_amt = allPlayers[i].HealOnKillAmount;
-
-                if (health_max - health_cur >= heal_amt)
-                    heal_amt = 0;
-                else if (health_max > health_cur)
-                    heal_amt -= health_max - health_cur;
-                
-                heal_amt = intMin(max_overheal - health_cur, heal_amt);
-
-                if (heal_amt > 0) {
-                    // Apply overheal
-                    TF2Util_TakeHealth(i, float(heal_amt), TAKEHEALTH_IGNORE_MAXHEALTH);
-                }
             }
         }
     }
@@ -3256,8 +3252,8 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
             int heal_on_kill = TF2Attrib_HookValueInt(0, "heal_on_kill", weapon);
             if (heal_on_kill) // Powerjack kill.
             {
-                allPlayers[attacker].HealOnKillFrame = GetGameTickCount();
-                allPlayers[attacker].HealOnKillAmount = heal_on_kill;
+                allPlayers[attacker].OldHealth = GetClientHealth(attacker);
+                RequestFrame(ApplyOverhealOnKill, weapon);
             }
             if (index == 356 && damagecustom == TF_CUSTOM_BACKSTAB) // Conniver's Kunai backstab.
             {
