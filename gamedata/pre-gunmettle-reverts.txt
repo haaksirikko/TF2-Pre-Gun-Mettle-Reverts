@@ -496,10 +496,10 @@
 				"linux"   "259"
 			}
 
-			"CTFPlayerShared::m_pOuter"
+			"CTFRevolver::CanFireCriticalShot"
 			{
-				"windows" "396"
-				"linux"	  "396"
+				"windows"	"439"
+				"linux"		"446"
 			}
 
 			"CGameTrace::m_pEnt"
@@ -711,6 +711,24 @@
 					"pOther"
 					{
 						"type" "cbaseentity"
+					}
+				}
+			}
+			"CTFRevolver::CanFireCriticalShot"
+			{
+				"offset"	"CTFRevolver::CanFireCriticalShot"
+				"hooktype"	"entity"
+				"this"		"entity"
+				"return"	"bool"
+				"arguments"
+				{
+					"bIsHeadshot"
+					{
+						"type"	"bool"
+					}
+					"pTarget"
+					{
+						"type"	"int"
 					}
 				}
 			}

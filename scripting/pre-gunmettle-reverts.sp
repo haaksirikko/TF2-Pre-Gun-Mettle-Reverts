@@ -33,7 +33,6 @@
 #include <tf2attributes>
 #include <tf2utils>
 
-#define PYRO_OVERHEAL 260
 #define KUNAI_OVERHEAL 180
 #define TICK_RATE 66
 #define TICK_RATE_PRECISION GetTickInterval()
@@ -112,6 +111,7 @@ DynamicHook DHooks_CBaseObject_Construct;
 DynamicHook DHooks_CObjectSapper_FinishedBuilding;
 DynamicHook DHooks_CObjectSentrygun_OnWrenchHit;
 DynamicHook DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer;
+DynamicHook DHooks_CTFRevolver_CanFireCriticalShot;
 
 DynamicDetour DHooks_InternalCalculateObjectCost;
 DynamicDetour DHooks_GetPlayerClassData;
@@ -186,7 +186,6 @@ Address MemoryPatch_DisguiseIsAlways2Seconds;
 Address MemoryPatch_DisguiseIsAlways2Seconds_OldValue;
 float MemoryPatch_DisguiseIsAlways2Seconds_NewValue = 2.00;
 
-Address CTFPlayerShared_m_pOuter;
 Address CGameTrace_m_pEnt;
 Address CTakeDamageInfo_m_hAttacker;
 Address CTakeDamageInfo_m_flDamage;
@@ -541,7 +540,6 @@ enum BazaarBargainShotManager
 
 enum struct Player
 {
-    float TimeSinceEncounterWithFire;
     int TicksSinceHeadshot;
     int TickSinceBonk;
     int MaxHealth;
@@ -830,6 +828,7 @@ public void OnPluginStart()
     DHooks_CObjectSapper_FinishedBuilding = DynamicHook.FromConf(config, "CObjectSapper::FinishedBuilding");
     DHooks_CObjectSentrygun_OnWrenchHit = DynamicHook.FromConf(config, "CObjectSentrygun::OnWrenchHit");
     DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer = DynamicHook.FromConf(config, "CTFProjectile_HealingBolt::ImpactTeamPlayer");
+    DHooks_CTFRevolver_CanFireCriticalShot = DynamicHook.FromConf(config, "CTFRevolver::CanFireCriticalShot");
 
     DHooks_InternalCalculateObjectCost = DynamicDetour.FromConf(config, "InternalCalculateObjectCost");
     DHooks_GetPlayerClassData = DynamicDetour.FromConf(config, "GetPlayerClassData");
@@ -972,7 +971,6 @@ public void OnPluginStart()
     // StoreToAddress(MemoryPatch_DisguiseIsAlways2Seconds, AddressOf(MemoryPatch_DisguiseIsAlways2Seconds_NewValue), NumberType_Int32);
 
     // Offsets.
-    CTFPlayerShared_m_pOuter = view_as<Address>(GameConfGetOffset(config, "CTFPlayerShared::m_pOuter"));
     CGameTrace_m_pEnt = view_as<Address>(GameConfGetOffset(config, "CGameTrace::m_pEnt"));
     CTakeDamageInfo_m_hAttacker = view_as<Address>(40);
     CTakeDamageInfo_m_flDamage = view_as<Address>(48);
@@ -2429,10 +2427,6 @@ public Action ClientDeath(Event event, const char[] name, bool dontBroadcast)
         }
     }
 
-    // Show that the player was killed by an Ambassador headshot.
-    if (allPlayers[client].TicksSinceHeadshot == GetGameTickCount())
-        event.SetInt("customkill", TF_CUSTOM_HEADSHOT);
-
     // Set a bool to show whether the player had the Vita-Saw equipped when dying.
     allPlayers[client].HadVitaSawEquipped = DoesPlayerHaveItem(client, 173) != 0;
     return Plugin_Continue;
@@ -2559,6 +2553,8 @@ public void OnEntityCreated(int entity, const char[] class)
                 DHooks_CWeaponMedigun_ItemPostFrame.HookEntity(Hook_Pre, entity, MedigunItemPostFrame);
             else if (StrEqual(class, "tf_weapon_sniperrifle_decap"))
                 DHooks_CTFSniperRifleDecap_SniperRifleChargeRateMod.HookEntity(Hook_Pre, entity, GetBazaarBargainChargeRate);
+            else if (StrEqual(class, "tf_weapon_revolver"))
+                DHooks_CTFRevolver_CanFireCriticalShot.HookEntity(Hook_Pre, entity, CanFireCriticalShot);
         }
         allEntities[entity].OriginalTF2ItemsIndex = OriginalTF2ItemsIndex;
     }
@@ -2940,17 +2936,6 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
     int victimActiveWeapon = GetEntPropEnt(victim, Prop_Send, "m_hActiveWeapon");
     allPlayers[victim].HealthBeforeKill = GetClientHealth(victim);
 
-    if (
-        (damagetype & DMG_IGNITE || index == 348) &&
-        ((attacker != victim && GetClientTeam(attacker) != GetClientTeam(victim)) || attacker == victim) &&
-        !IsInvulnerable(victim) &&
-        !TF2_IsPlayerInCondition(victim, TFCond_FireImmune)
-    ) // Anything that causes fire.
-    {
-        allPlayers[victim].TimeSinceEncounterWithFire = GetGameTime();
-        returnValue = Plugin_Changed;
-    }
-
     // projectile-specific code
     if (damagecustom == TF_CUSTOM_BASEBALL && GetWeaponIndex(inflictor) == 44) // Sandman stun. The majority of this is sourced from the TF2 source code leak.
     {
@@ -3022,12 +3007,6 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
             )
         ) {
             TF2_AddCondition(victim, TFCond_MarkedForDeathSilent, TICK_RATE_PRECISION);
-        } 
-        if (allPlayers[victim].TicksSinceHeadshot == GetGameTickCount() && (index == 61 || index == 1006)) // Ambassador headshot. TODO:
-        {
-            // You'd think that "damagetype |= DMG_USE_HITLOCATIONS" should work fine, but ever since Jungle Inferno, this was changed to only actually crit within a specific range (0-1200 HU).
-            damagetype |= DMG_CRIT;
-            returnValue = Plugin_Changed;
         }
         if (index == 442 || index == 588) // Righteous Bison and Pomson 6000 damage. I doubt this is exact but it's still pretty accurate as far as I'm aware.
         {
@@ -3582,6 +3561,12 @@ MRESReturn HealPlayerWithCrossbow(int entity, DHookParam parameters)
     return MRES_Ignored;
 }
 
+MRESReturn CanFireCriticalShot(int entity, DHookReturn returnValue, DHookParam parameters) {
+    // Set pTarget to NULL such that the distance check for crit fails and allows the Ambassador to headshot from any range.
+    parameters.Set(2, Address_Null);
+    return MRES_ChangedHandled;
+}
+
 MRESReturn GetBuildingCost(DHookReturn returnValue, DHookParam parameters)
 {
     if (parameters.Get(1) == OBJ_TELEPORTER) // Revert the teleporter cost to 125. This won't affect the client however...
@@ -3726,7 +3711,7 @@ MRESReturn AddToSpycicleMeter(int entity, DHookReturn returnValue, DHookParam pa
 
 MRESReturn AddCondition(Address thisPointer, DHookParam parameters)
 {
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
+    int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     TFCond condition = parameters.Get(1);
     if ((condition == TFCond_UberchargedCanteen || condition == TFCond_MegaHeal) && allPlayers[client].TicksSinceMmmphUsage == GetGameTickCount()) // Phlog invulnerability/knockback prevention.
         return MRES_Supercede;
@@ -3774,7 +3759,7 @@ MRESReturn AddCondition(Address thisPointer, DHookParam parameters)
 
 MRESReturn RemoveCondition(Address thisPointer, DHookParam parameters)
 {
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
+    int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     TFCond condition = parameters.Get(1);
     if (allPlayers[client].TicksSinceCharge == GetGameTickCount()) // Prevent player debuffs from being removed via charging.
     {
@@ -3798,7 +3783,7 @@ MRESReturn RemoveCondition(Address thisPointer, DHookParam parameters)
 
 MRESReturn CalculateChargeCrit(Address thisPointer, DHookParam parameters)
 {
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
+    int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     if (GetGameTime() - allPlayers[client].TimeSinceShieldBash < 0.3)
     {
         parameters.Set(1, true); // Set bForceCrit to true, so that the player's melee weapon will always crit on shield bash.
@@ -3809,7 +3794,7 @@ MRESReturn CalculateChargeCrit(Address thisPointer, DHookParam parameters)
 
 MRESReturn AddToCloak(Address thisPointer, DHookReturn returnValue, DHookParam parameters)
 {
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
+    int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     if (DoesPlayerHaveItem(client, 59)) // Only gain up to 35% cloak with the Dead Ringer.
     {
         parameters.Set(1, min(view_as<float>(parameters.Get(1)), 35.00)); // Force "val" to be no larger than 35.
@@ -3822,7 +3807,7 @@ MRESReturn AddToCloak(Address thisPointer, DHookReturn returnValue, DHookParam p
 /*
 MRESReturn HealPlayer(Address thisPointer, DHookParam parameters)
 {
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
+    int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     int healer = parameters.Get(1);
     if (TF2_GetPlayerClass(client) == TFClass_Heavy && allPlayers[client].MaxHealth == 350.00 && healer > 0 && DoesPlayerHaveItem(healer, 411) == GetEntPropEnt(healer, Prop_Send, "m_hActiveWeapon")) // Only overheal up to 375 HP with the Quick-Fix if the target is using the Dalokohs Bar.
     {
@@ -3835,14 +3820,14 @@ MRESReturn HealPlayer(Address thisPointer, DHookParam parameters)
 
 MRESReturn CheckIfPlayerCanBeUbered(Address thisPointer, DHookReturn returnValue, DHookParam parameters)
 {
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
+    int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     returnValue.Value = CanReceiveMedigunChargeEffect(client, parameters.Get(1));
     return MRES_Supercede;
 }
 
 MRESReturn ModifyRageMeter(Address thisPointer, DHookParam parameters)
 {
-    int client = GetEntityFromAddress(Dereference(thisPointer + CTFPlayerShared_m_pOuter));
+    int client = TF2Util_GetPlayerFromSharedAddress(thisPointer);
     if (TF2_GetPlayerClass(client) == TFClass_Pyro && DoesPlayerHaveItem(client, 594))
     {
         float delta = view_as<float>(parameters.Get(1));
