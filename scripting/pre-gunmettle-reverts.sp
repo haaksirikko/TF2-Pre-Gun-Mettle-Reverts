@@ -110,6 +110,7 @@ DynamicHook DHooks_CObjectSapper_FinishedBuilding;
 DynamicHook DHooks_CObjectSentrygun_OnWrenchHit;
 DynamicHook DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer;
 DynamicHook DHooks_CTFRevolver_CanFireCriticalShot;
+DynamicHook DHooks_CTFStunBall_ApplyBallImpactEffectOnVictim;
 
 DynamicDetour DHooks_InternalCalculateObjectCost;
 DynamicDetour DHooks_GetPlayerClassData;
@@ -140,7 +141,8 @@ DynamicDetour DHooks_CBaseObject_GetConstructionMultiplier;
 DynamicDetour DHooks_CBaseObject_CreateAmmoPack;
 DynamicDetour DHooks_CTFProjectile_Arrow_BuildingHealingArrow;
 DynamicDetour DHooks_CTFGameRules_ApplyOnDamageModifyRules;
-DynamicDetour dhook_CTFPlayer_GiveAmmo;
+DynamicDetour DHooks_CTFPlayer_GiveAmmo;
+DynamicDetour DHooks_CTFPlayerShared_StunPlayer;
 
 Handle SDKCall_CTFPlayer_EquipWearable;
 Handle SDKCall_CTFItem_GetItemID;
@@ -191,8 +193,8 @@ Address CTakeDamageInfo_m_bitsDamageType;
 //Address CTakeDamageInfo_m_flDamageBonus;
 Address CTakeDamageInfo_m_eCritType;
 Address CWeaponMedigun_m_bReloadDown; // *((_BYTE *)this + 2059)
-Address CObjectSentrygun_m_flShieldFadeTime; // *((float *)this + 712)
-Address CObjectBase_m_flHealth; // *((float *)a1 + 652)
+int CObjectSentrygun_m_flShieldFadeTime; // *((float *)this + 712)
+Address CBaseObject_m_flHealth; // *((float *)a1 + 652)
 Address CTFPlayer_m_aObjects;
 const Address TFPlayerClassData_t_m_flMaxSpeed = view_as<Address>(640); // *((float *)this + 160)
 
@@ -541,22 +543,20 @@ enum struct Player
     int TicksSinceHeadshot;
     int TickSinceBonk;
     int MaxHealth;
-    int SpreadRecovery; // For Ambassador headshots.
     int HealthBeforeKill; // For Conniver's Kunai backstabs.
     int TicksSinceProjectileEncounter;
     int MostRecentProjectileEncounter;
     int OldHealth;
     float WeaponSwitchTime;
     int TicksSinceFallDamage;
+    int StunFrame;
+    int StunInflictor;
     
     int Weapons[MAX_WEAPON_COUNT];
 
     // Shortstop.
     int PrimaryAmmo;
     int SecondaryAmmo;
-
-    // BONK! Atomic Punch.
-    int TicksSinceBonkEnd;
 
     // Flying Guillotine.
     float CleaverChargeMeter;
@@ -637,7 +637,6 @@ enum struct Entity
 
     // Wrangler.
     int OldShield;
-    float ShieldFadeTime;
 
     // Gunslinger.
     float BuildingHealth;
@@ -692,8 +691,7 @@ BlockedItem blockedWeapons[] =
     { "Thermal Thruster", 1179 },
     { "Gas Passer", 1180 },
     { "Hot Hand", 1181 },
-    { "Second Banana", 1190 },
-    { "Prinny Machete", 30758 }
+    { "Second Banana", 1190 }
 };
 TF2ConVar defaultConVars[] =
 { 
@@ -709,11 +707,11 @@ TF2ConVar defaultConVars[] =
     { "tf_feign_death_duration", INVALID_HANDLE, 0, 0.00, TF2ConVarType_Float }, // Don't provide any damage buffs, I'll just handle everything myself.
     { "tf_stealth_damage_reduction", INVALID_HANDLE, 0, 1.0, TF2ConVarType_Float }, // Cloaking does not provide any damage resistance.
 
-    // NotnHeavy's Old Flamethrower Mechanics
-    { "notnheavy_flamethrower_damage", INVALID_HANDLE, 0, 6.80, TF2ConVarType_Float }, // 6.80 flame damage
-    { "notnheavy_flamethrower_falloff", INVALID_HANDLE, 0, 0.60, TF2ConVarType_Float }, // 60% falloff
-    { "notnheavy_flamethrower_oldafterburn_damage", INVALID_HANDLE, 0, 1, TF2ConVarType_Int }, // Use old afterburn damage.
-    { "notnheavy_flamethrower_oldafterburn_duration", INVALID_HANDLE, 0, 1, TF2ConVarType_Int }, // Use old afterburn duration.
+    // Old Flamethrower Mechanics
+    { "sm_oldflames_flamethrower_damage", INVALID_HANDLE, 0, 6.80, TF2ConVarType_Float }, // 6.80 flame damage
+    { "sm_oldflames_flamethrower_falloff", INVALID_HANDLE, 0, 0.60, TF2ConVarType_Float }, // 60% falloff
+    { "sm_oldflames_flamethrower_oldafterburn_damage", INVALID_HANDLE, 0, 1, TF2ConVarType_Int }, // Use old afterburn damage.
+    { "sm_oldflames_flamethrower_oldafterburn_duration", INVALID_HANDLE, 0, 1, TF2ConVarType_Int }, // Use old afterburn duration.
 };
 int resistanceMapping[] =
 {
@@ -827,6 +825,7 @@ public void OnPluginStart()
     DHooks_CObjectSentrygun_OnWrenchHit = DynamicHook.FromConf(config, "CObjectSentrygun::OnWrenchHit");
     DHooks_CTFProjectile_HealingBolt_ImpactTeamPlayer = DynamicHook.FromConf(config, "CTFProjectile_HealingBolt::ImpactTeamPlayer");
     DHooks_CTFRevolver_CanFireCriticalShot = DynamicHook.FromConf(config, "CTFRevolver::CanFireCriticalShot");
+    DHooks_CTFStunBall_ApplyBallImpactEffectOnVictim = DynamicHook.FromConf(config, "CTFStunBall::ApplyBallImpactEffectOnVictim");
 
     DHooks_InternalCalculateObjectCost = DynamicDetour.FromConf(config, "InternalCalculateObjectCost");
     DHooks_GetPlayerClassData = DynamicDetour.FromConf(config, "GetPlayerClassData");
@@ -857,7 +856,8 @@ public void OnPluginStart()
     DHooks_CBaseObject_CreateAmmoPack = DynamicDetour.FromConf(config, "CBaseObject::CreateAmmoPack");
     DHooks_CTFProjectile_Arrow_BuildingHealingArrow = DynamicDetour.FromConf(config, "CTFProjectile_Arrow::BuildingHealingArrow");
     DHooks_CTFGameRules_ApplyOnDamageModifyRules = DynamicDetour.FromConf(config, "CTFGameRules::ApplyOnDamageModifyRules");
-    dhook_CTFPlayer_GiveAmmo = DynamicDetour.FromConf(config, "CTFPlayer::GiveAmmo");
+    DHooks_CTFPlayer_GiveAmmo = DynamicDetour.FromConf(config, "CTFPlayer::GiveAmmo");
+    DHooks_CTFPlayerShared_StunPlayer = DynamicDetour.FromConf(config, "CTFPlayerShared::StunPlayer");
     
     DHooks_InternalCalculateObjectCost.Enable(Hook_Pre, GetBuildingCost);
     DHooks_GetPlayerClassData.Enable(Hook_Post, GetTFClassData);
@@ -892,7 +892,8 @@ public void OnPluginStart()
     DHooks_CTFProjectile_Arrow_BuildingHealingArrow.Enable(Hook_Post, PostHealingBoltImpact);
     DHooks_CTFGameRules_ApplyOnDamageModifyRules.Enable(Hook_Pre, ApplyDamageRules);
     DHooks_CTFGameRules_ApplyOnDamageModifyRules.Enable(Hook_Post, ApplyDamageRules_Post);
-    dhook_CTFPlayer_GiveAmmo.Enable(Hook_Pre, DHookCallback_CTFPlayer_GiveAmmo);
+    DHooks_CTFPlayer_GiveAmmo.Enable(Hook_Pre, DHookCallback_CTFPlayer_GiveAmmo);
+    DHooks_CTFPlayerShared_StunPlayer.Enable(Hook_Pre, DHookCallback_CTFPlayerShared_StunPlayer);
 
     // SDKCall.
     StartPrepSDKCall(SDKCall_Player);
@@ -976,8 +977,8 @@ public void OnPluginStart()
     //CTakeDamageInfo_m_flDamageBonus = view_as<Address>(84);
     CTakeDamageInfo_m_eCritType = view_as<Address>(100); //view_as<Address>(GameConfGetOffset(config, "CTakeDamageInfo::m_eCritType"));
     CWeaponMedigun_m_bReloadDown = view_as<Address>(FindSendPropInfo("CWeaponMedigun", "m_nChargeResistType") + 11);
-    CObjectSentrygun_m_flShieldFadeTime = view_as<Address>(FindSendPropInfo("CObjectSentrygun", "m_nShieldLevel") + 4);
-    CObjectBase_m_flHealth = view_as<Address>(FindSendPropInfo("CBaseObject", "m_bHasSapper") - 4);
+    CObjectSentrygun_m_flShieldFadeTime = FindSendPropInfo("CObjectSentrygun", "m_nShieldLevel") + 4;
+    CBaseObject_m_flHealth = view_as<Address>(FindSendPropInfo("CBaseObject", "m_bHasSapper") - 4);
     CTFPlayer_m_aObjects = view_as<Address>(FindSendPropInfo("CTFPlayer", "m_iClassModelParity") + 72);
 
     delete config;
@@ -1613,7 +1614,7 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
 
                 TF2Items_SetNumAttributes(itemNew, 2);
             }
-            else if (index == 811 || index == 832) // Huo-Long Heater. TODO: change pulse damage from ring of fire to 15 instead of 12
+            else if (index == 811 || index == 832) // Huo-Long Heater.
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 1, 1.00); // -0% damage penalty
@@ -1627,8 +1628,15 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
         }
         // Secondary.
         {
-            // TODO for Dalokohs bar: remove the UI and see if there's anything you can do about client prediction ding.
-            if (index == 311) // Buffalo Steak Sandvich.
+            if (index == 159 || index == 433) // Dalokohs Bar.
+            {
+                // Remove old attributes.
+                TF2Items_SetAttribute(itemNew, 0, 801, 0.0); // item_meter_charge_rate
+                TF2Items_SetAttribute(itemNew, 1, 856, 0.0); // item_meter_charge_type
+
+                TF2Items_SetNumAttributes(itemNew, 2);
+            }
+            else if (index == 311) // Buffalo Steak Sandvich.
             {
                 // Apply new attributes.
                 TF2Items_SetAttribute(itemNew, 0, 798, 1.10); // +10% damage vulnerability while active
@@ -1774,13 +1782,6 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             }
             else if (index == 998) // Vaccinator. 
             {
-                
-                // TODO - revert these updates:
-                /*
-                Gun Mettle:
-                - Resistances make a metal clashing sound.
-                */
-
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 739, 1.00); // -0% ÜberCharge rate on Overhealed patients
                 
@@ -1838,8 +1839,10 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
             {
                 // Remove old attributes.
                 TF2Items_SetAttribute(itemNew, 0, 800, 1.00); // -0% maximum overheal on wearer
+                TF2Items_SetAttribute(itemNew, 1, 801, 0.0); // item_meter_charge_rate
+                TF2Items_SetAttribute(itemNew, 2, 856, 0.0); // item_meter_charge_type
 
-                TF2Items_SetNumAttributes(itemNew, 1);
+                TF2Items_SetNumAttributes(itemNew, 3);
             }
             else if (index == 231) // Darwin's Danger Shield.
             {
@@ -1974,8 +1977,8 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
                 TF2Items_SetAttribute(itemNew, 2, 810, 0.00); // mod_cloak_no_regen_from_items (Attrib_NoCloakFromAmmo)
 
                 // Apply new attributes.
-                TF2Items_SetAttribute(itemNew, 3, 35, 1.80); // +80% cloak regen rate
-                TF2Items_SetAttribute(itemNew, 4, 82, 1.60); // -60% cloak duration
+                TF2Items_SetAttribute(itemNew, 3, 34, 1.60); // +60% cloak drain rate
+                TF2Items_SetAttribute(itemNew, 4, 35, 1.80); // +80% cloak regen rate
 
                 TF2Items_SetNumAttributes(itemNew, 5);
             }
@@ -1999,8 +2002,8 @@ public Action TF2Items_OnGiveNamedItem(int client, char[] class, int index, Hand
         else if (index == 415) // Reserve Shooter.
         {
             // Remove old attributes.
-            TF2Items_SetAttribute(itemNew, 0, 547, 1.00); // This weapon deploys 0% faster
-            TF2Items_SetAttribute(itemNew, 1, 114, 0.00); // Mini-crits targets launched airborne by explosions, grapple hooks or rocket packs
+            TF2Items_SetAttribute(itemNew, 0, 114, 0.00); // Mini-crits targets launched airborne by explosions, grapple hooks or rocket packs
+            TF2Items_SetAttribute(itemNew, 1, 547, 1.00); // This weapon deploys 0% faster
 
             // Apply new attributes.
             TF2Items_SetAttribute(itemNew, 2, 178, 0.85); // 15% faster weapon switch
@@ -2407,22 +2410,15 @@ public Action ClientDeath(Event event, const char[] name, bool dontBroadcast)
 {
     // Set up variables.
     int client = GetClientOfUserId(event.GetInt("userid"));
-    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 
     // Make the player's sentry shield disappear in only one second.
-    if (IsValidEntity(weapon))
+    int sentry = GetObjectOfType(client, view_as<int>(OBJ_SENTRYGUN), 0);
+    if (IsValidEntity(sentry))
     {
-        int index = GetWeaponIndex(weapon);
-        if (index == 140 || index == 1086 || index == 30668) // Make the player's sentry shield disappear in only one second.
-        {
-            int sentry = GetObjectOfType(client, view_as<int>(OBJ_SENTRYGUN), 0); // SDKCall(SDKCall_CTFPlayer_GetObjectOfType, client, OBJ_SENTRYGUN, 0);
-            if (IsValidEntity(sentry))
-            {
-                Address m_flShieldFadeTime = GetEntityAddress(sentry) + CObjectSentrygun_m_flShieldFadeTime;
-                if (Dereference(m_flShieldFadeTime) > GetGameTime())
-                    allEntities[sentry].ShieldFadeTime = GetGameTime() + 1.0;
-            }
-        }
+        if (GetEntProp(sentry, Prop_Send, "m_bPlayerControlled") > 0) {
+            SetEntDataFloat(sentry, CObjectSentrygun_m_flShieldFadeTime, GetGameTime() + 1.0);
+            SetEntProp(sentry, Prop_Send, "m_bPlayerControlled", 0);
+        } 
     }
 
     // Set a bool to show whether the player had the Vita-Saw equipped when dying.
@@ -2445,7 +2441,6 @@ public void PostClientInventoryReset(Event event, const char[] name, bool dontBr
 {
     // Reset some player data.
     int client = GetClientOfUserId(event.GetInt("userid"));
-    allPlayers[client].SpreadRecovery = 0;
 
     // Structurise the player's weapon list.
     StructuriseWeaponList(client);
@@ -2461,11 +2456,6 @@ public void PostClientInventoryReset(Event event, const char[] name, bool dontBr
 //////////////////////////////////////////////////////////////////////////////
 // NEXT-FRAME EVENTS                                                        //
 //////////////////////////////////////////////////////////////////////////////
-
-void SetSpreadInaccuracy(int client)
-{
-    allPlayers[client].SpreadRecovery = 66;
-}
 
 void RewardChargeOnChargeKill(int client) // This is called next frame to compensate for charge bash kills.
 {
@@ -2556,6 +2546,9 @@ public void OnEntityCreated(int entity, const char[] class)
         }
         allEntities[entity].OriginalTF2ItemsIndex = OriginalTF2ItemsIndex;
     }
+    else if (StrEqual(class, "tf_projectile_stun_ball")) {
+        DHooks_CTFStunBall_ApplyBallImpactEffectOnVictim.HookEntity(Hook_Pre, entity, ApplyBallImpactEffectOnVictim);
+    }
     else if (StrEqual(class, "tf_projectile_ball_ornament"))
         DHooks_CTFBall_Ornament_Explode.HookEntity(Hook_Pre, entity, OrnamentExplode);
     else if (StrEqual(class, "tf_projectile_rocket") || StrEqual(class, "tf_projectile_flare"))
@@ -2596,22 +2589,6 @@ public void OnGameFrame()
     for (int i = 0; i < sizeof(defaultConVars); ++i)
         SetTF2ConVarValue(defaultConVars[i].Name, defaultConVars[i].NewValue);
 
-    // Go through entities.
-    for (int i = 0; i < MAX_ENTITY_COUNT; ++i)
-    {
-        if (IsValidEntity(i))
-        {
-            // Set Wrangler sentry shield fade time.
-            if (allEntities[i].ShieldFadeTime != 0)
-            {
-                if (allEntities[i].ShieldFadeTime < GetGameTime())
-                    allEntities[i].ShieldFadeTime = 0.0;
-                Address m_flShieldFadeTime = GetEntityAddress(i) + CObjectSentrygun_m_flShieldFadeTime;
-                WriteToValue(m_flShieldFadeTime, allEntities[i].ShieldFadeTime);
-            }
-        }
-    }
-
     // Go through players.
     for (int i = 1; i <= MaxClients; ++i)
     {
@@ -2620,8 +2597,6 @@ public void OnGameFrame()
             int activeWeapon = GetEntPropEnt(i, Prop_Send, "m_hActiveWeapon");
             int doesHaveWeapon;
             int secondaryWeapon = GetPlayerWeaponSlot(i, TFWeaponSlot_Secondary);
-            if (allPlayers[i].SpreadRecovery > 0)
-                --allPlayers[i].SpreadRecovery;
 
             // BONK! consumption.
             if (TF2_IsPlayerInCondition(i, TFCond_Bonked))
@@ -2865,7 +2840,7 @@ Action EntityTouch(int entity, int other)
 
 Action ClientIsAttacked(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {
-    if (hitgroup == 1 && damagetype & DMG_USE_HITLOCATIONS && allPlayers[attacker].SpreadRecovery == 0)
+    if (hitgroup == 1 && damagetype & DMG_USE_HITLOCATIONS)
         allPlayers[victim].TicksSinceHeadshot = GetGameTickCount();
     return Plugin_Continue;
 }
@@ -2935,40 +2910,9 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
     allPlayers[victim].HealthBeforeKill = GetClientHealth(victim);
 
     // projectile-specific code
-    if (damagecustom == TF_CUSTOM_BASEBALL && GetWeaponIndex(inflictor) == 44) // Sandman stun. The majority of this is sourced from the TF2 source code leak.
+    if (damagecustom == TF_CUSTOM_BASEBALL && GetWeaponIndex(inflictor) == 44 && damage == 22.50) // Sandman damage.
     {
         damage = 15.00; // Force the damage to always be 15.
-        allPlayers[victim].TicksSinceProjectileEncounter = 0;
-        TF2_RemoveCondition(victim, TFCond_Dazed); // TF2_StunPlayer just sets TFCond_Dazed again anyway.
-
-        // We have a more intense stun based on our travel time.
-        float flLifeTime = floatMin(GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp, FLIGHT_TIME_TO_MAX_STUN);
-        float flLifeTimeRatio = flLifeTime / FLIGHT_TIME_TO_MAX_STUN;
-        if (flLifeTimeRatio > 0.1)
-        {
-            float flStun = 0.5;
-            float flStunDuration = GetConVarFloat(tf_scout_stunball_base_duration) * flLifeTimeRatio;
-            if (damagetype & DMG_CRIT)
-                flStunDuration += 2.0; // Extra two seconds of effect time if we're a critical hit.
-            int iStunFlags = TF_STUNFLAGS_SMALLBONK;
-            if (flLifeTimeRatio >= 1.0)
-            {
-                flStunDuration += 1.0;
-                iStunFlags = TF_STUNFLAGS_BIGBONK;
-            }
-
-            // Adjust stun amount and flags if we're hitting a boss or scaled enemy
-            if (GameModeUsesMiniBosses() && (GetEntProp(victim, Prop_Send, "m_bIsMiniBoss") || GetEntPropFloat(victim, Prop_Send, "m_flModelScale") > 1.0))
-            {
-                // If max range, freeze them in place - otherwise adjust it based on distance
-                flStun = flLifeTimeRatio >= 1.0 ? 1.0 : RemapValClamped( flLifeTimeRatio, 0.1, 0.99, 0.5, 0.75 );
-                iStunFlags = flLifeTimeRatio >= 1.0 ? ( TF_STUNFLAG_CHEERSOUND | TF_STUNFLAG_SLOWDOWN ) : TF_STUNFLAG_SLOWDOWN; 
-            }
-
-            if (GetEntProp(victim, Prop_Send, "m_nWaterLevel") != WL_Eyes)
-                TF2_StunPlayer(victim, flStunDuration, flStun, iStunFlags, attacker);
-        }
-
         returnValue = Plugin_Changed;
     }
     else if (damagecustom == TF_CUSTOM_CANNONBALL_PUSH) // Loose Cannon ball.
@@ -3083,11 +3027,10 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
                 returnValue = Plugin_Changed;
             }
         }
-        if (index == 41) // Natascha stun. Stun amount/duration taken from TF2 source code.
+        if (index == 41) // Natascha.
         {
-            // Slow enemy on hit, unless they're being healed by a medic
-            if (!TF2_IsPlayerInCondition(victim, TFCond_Healing))
-                TF2_StunPlayer(victim, 0.20, 0.60, TF_STUNFLAG_SLOWDOWN, attacker);
+            allPlayers[victim].StunFrame = GetGameTickCount();
+            allPlayers[victim].StunInflictor = weapon;
         }
         if (damagetype & DMG_IGNITE && index == 811 || index == 832) // Huo-Long Heater Ring of Fire attack.
         {
@@ -3356,8 +3299,6 @@ MRESReturn WeaponPrimaryFire(int entity)
 {
     int index = GetWeaponIndex(entity);
     int owner = allEntities[entity].Owner;
-    if (index == 61 || index == 1006) // Ambassador headshot cooldown.
-        RequestFrame(SetSpreadInaccuracy, owner); // SDKHook_TraceAttack/SDKHook_OnTakeDamage are both called only after this function is invoked.
     else if (entity == GetPlayerWeaponSlot(owner, TFWeaponSlot_Melee)) // Charge on charge kill.
     {
         allPlayers[owner].GiveChargeOnKill = false;
@@ -3502,19 +3443,19 @@ MRESReturn CommandRepair(int entity, DHookReturn returnValue, DHookParam paramet
 MRESReturn StartBuilding(int entity, DHookReturn returnValue, DHookParam parameters)
 {
     if (GetEntProp(entity, Prop_Send, "m_bMiniBuilding")) // Mini sentries always start off at max health.
-        WriteToValue(GetEntityAddress(entity) + CObjectBase_m_flHealth, 100.00);
+        WriteToValue(GetEntityAddress(entity) + CBaseObject_m_flHealth, 100.00);
     return MRES_Ignored;
 }
 
 MRESReturn PreConstructBuilding(int entity, DHookReturn returnValue, DHookParam parameters)
 {
-    allEntities[entity].BuildingHealth = Dereference(GetEntityAddress(entity) + CObjectBase_m_flHealth);
+    allEntities[entity].BuildingHealth = Dereference(GetEntityAddress(entity) + CBaseObject_m_flHealth);
     return MRES_Ignored;
 }
 
 MRESReturn PostConstructBuilding(int entity, DHookReturn returnValue, DHookParam parameters)
 {
-    Address m_flHealth = GetEntityAddress(entity) + CObjectBase_m_flHealth;
+    Address m_flHealth = GetEntityAddress(entity) + CBaseObject_m_flHealth;
     if (GetEntProp(entity, Prop_Send, "m_bMiniBuilding")) // Prevent mini sentries from gaining health while being built. Usually only an issue if the building has been damaged during construction time.
     {
         if (SDKCall(SDKCall_CBaseObject_GetReversesBuildingConstructionSpeed, entity))
@@ -3559,10 +3500,19 @@ MRESReturn HealPlayerWithCrossbow(int entity, DHookParam parameters)
     return MRES_Ignored;
 }
 
-MRESReturn CanFireCriticalShot(int entity, DHookReturn returnValue, DHookParam parameters) {
+MRESReturn CanFireCriticalShot(int entity, DHookReturn returnValue, DHookParam parameters)
+{
     // Set pTarget to NULL such that the distance check for crit fails and allows the Ambassador to headshot from any range.
     parameters.Set(2, Address_Null);
     return MRES_ChangedHandled;
+}
+
+MRESReturn ApplyBallImpactEffectOnVictim(int entity, DHookParam parameters)
+{
+    int victim = parameters.Get(1);
+    allPlayers[victim].StunFrame = GetGameTickCount();
+    allPlayers[victim].StunInflictor = entity;
+    return MRES_Ignored;
 }
 
 MRESReturn GetBuildingCost(DHookReturn returnValue, DHookParam parameters)
@@ -3743,8 +3693,6 @@ MRESReturn AddCondition(Address thisPointer, DHookParam parameters)
         return MRES_Supercede;
     else if (condition == TFCond_Slowed && GetPlayerWeaponSlot(client, TFWeaponSlot_Primary) == GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon")) // Modify checks for the Sydney Sleeper.
         allPlayers[client].TimeSinceScoping = GetGameTime();
-    else if (condition == TFCond_Dazed && allPlayers[client].TicksSinceBonkEnd == GetGameTickCount()) // Do not suffer from BONK! slowdown.
-        return MRES_Supercede;
     else if (condition == TFCond_FireImmune && parameters.Get(2) == 1.0) {
         allPlayers[client].FireproofFrame = GetGameTickCount();
     }
@@ -3774,8 +3722,10 @@ MRESReturn RemoveCondition(Address thisPointer, DHookParam parameters)
         if (GetEntPropFloat(client, Prop_Send, "m_flCloakMeter") > 40.00) // Set the cloak meter to 40% when ending feign death.
             SetEntPropFloat(client, Prop_Send, "m_flCloakMeter", 40.00);
     }
-    else if (condition == TFCond_Bonked) // Checks for BONK! slowdown.
-        allPlayers[client].TicksSinceBonkEnd = GetGameTickCount();
+    else if (condition == TFCond_Bonked) {
+        allPlayers[client].StunFrame = GetGameTickCount();
+        allPlayers[client].StunInflictor = client;
+    }
     return MRES_Ignored;
 }
 
@@ -3993,51 +3943,123 @@ MRESReturn ApplyDamageRules_Post(Address thisPointer, DHookReturn returnValue, D
 }
 
 MRESReturn DHookCallback_CTFPlayer_GiveAmmo(int client, DHookReturn returnValue, DHookParam parameters) {
+    int amount = parameters.Get(1);
+    ETFAmmoType ammo_idx = parameters.Get(2);
+    bool suppress_sound = parameters.Get(3);
+    int ammo_source = parameters.Get(4);
+
+    if (
+        TF2Attrib_HookValueInt(0, "ammo_becomes_health", client) == 1 &&
+        ammo_idx != TF_AMMO_METAL
+    ) {
+        // Ammo from ground pickups is converted to health.
+        if (ammo_source == kAmmoSource_Pickup) {
+            int iTakenHealth = TF2Util_TakeHealth(client, float(amount));
+            if (iTakenHealth > 0)
+            {
+                if (!suppress_sound)
+                {
+                    EmitGameSoundToAll("BaseCombatCharacter.AmmoPickup", client);
+                }
+
+                // Fire heal event
+                Event event = CreateEvent("player_healonhit", true);
+                event.SetInt("amount", iTakenHealth);
+                event.SetInt("entindex", client);
+                event.Fire();
+
+                // remove afterburn and bleed debuffs on heal
+                TF2_RemoveCondition(client, TFCond_OnFire);
+                TF2_RemoveCondition(client, TFCond_Bleeding);
+            }
+            returnValue.Value = iTakenHealth;
+            return MRES_Supercede;
+        }
+
+        // Ammo from the cart or engineer dispensers is flatly ignored.
+        if (ammo_source == kAmmoSource_DispenserOrCart) {
+            returnValue.Value = 0;
+            return MRES_Supercede;
+        }
+    }
+
+	return MRES_Ignored;
+}
+
+MRESReturn DHookCallback_CTFPlayerShared_StunPlayer(Address pThis, DHookParam parameters) {
+	int victim = TF2Util_GetPlayerFromSharedAddress(pThis);
+	float flStunDuration = parameters.Get(1);
+	float flStunAmount = parameters.Get(2);
+	int iStunFlags = parameters.Get(3);
+	int attacker = GetEntityFromAddress(parameters.Get(4));
+	int inflictor = -1;
+	float pos1[3];
+	float pos2[3];
+	bool override = false;
+	
 	if (
-		client > 0 &&
-		client <= MaxClients
+		victim >= 1 &&
+		victim <= MaxClients &&
+		attacker >= 1 &&
+		attacker <= MaxClients
 	) {
-		int amount = parameters.Get(1);
-		ETFAmmoType ammo_idx = parameters.Get(2);
-		bool suppress_sound = parameters.Get(3);
-		int ammo_source = parameters.Get(4);
+		if (allPlayers[victim].StunFrame == GetGameTickCount())
+        {
+			allPlayers[victim].StunFrame = 0;
 
-		if (
-			TF2Attrib_HookValueInt(0, "ammo_becomes_health", client) == 1 &&
-			ammo_idx != TF_AMMO_METAL
-		) {
-			// Ammo from ground pickups is converted to health.
-			if (ammo_source == kAmmoSource_Pickup) {
-				int iTakenHealth = TF2Util_TakeHealth(client, float(amount));
-				if (iTakenHealth > 0)
-				{
-					if (!suppress_sound)
-					{
-						EmitGameSoundToAll("BaseCombatCharacter.AmmoPickup", client);
-					}
+			inflictor = allPlayers[victim].StunInflictor;
+			allPlayers[victim].StunInflictor = -1;
+		}
 
-					// Fire heal event
-					Event event = CreateEvent("player_healonhit", true);
-					event.SetInt("amount", iTakenHealth);
-					event.SetInt("entindex", client);
-					event.Fire();
+		if (victim == attacker && StrEqual(allEntities[inflictor].Class, "player")) // Do not suffer from BONK! slowdown.
+        {
+			return MRES_Supercede;
+		}
+		else if (StrEqual(allEntities[inflictor].Class, "tf_projectile_stun_ball")) // Sandman stun.
+        {
+			override = true;
 
-					// remove afterburn and bleed debuffs on heal
-					TF2_RemoveCondition(client, TFCond_OnFire);
-					TF2_RemoveCondition(client, TFCond_Bleeding);
-				}
-				returnValue.Value = iTakenHealth;
+			// We have a more intense stun based on our travel time.
+            float flLifeTime = floatMin(GetGameTime() - allEntities[allPlayers[victim].MostRecentProjectileEncounter].SpawnTimestamp, FLIGHT_TIME_TO_MAX_STUN);
+            float flLifeTimeRatio = flLifeTime / FLIGHT_TIME_TO_MAX_STUN;
+            if (flLifeTimeRatio > 0.1)
+            {
+                flStunAmount = 0.5;
+                flStunDuration = GetConVarFloat(tf_scout_stunball_base_duration) * flLifeTimeRatio;
+                if (damagetype & DMG_CRIT)
+                    flStunDuration += 2.0; // Extra two seconds of effect time if we're a critical hit.
+                iStunFlags = TF_STUNFLAGS_SMALLBONK;
+                if (flLifeTimeRatio >= 1.0)
+                {
+                    flStunDuration += 1.0;
+                    iStunFlags = TF_STUNFLAGS_BIGBONK;
+                }
+
+                // Adjust stun amount and flags if we're hitting a boss or scaled enemy
+                if (GameModeUsesMiniBosses() && (GetEntProp(victim, Prop_Send, "m_bIsMiniBoss") || GetEntPropFloat(victim, Prop_Send, "m_flModelScale") > 1.0))
+                {
+                    // If max range, freeze them in place - otherwise adjust it based on distance
+                    flStunAmount = flLifeTimeRatio >= 1.0 ? 1.0 : RemapValClamped( flLifeTimeRatio, 0.1, 0.99, 0.5, 0.75 );
+                    iStunFlags = flLifeTimeRatio >= 1.0 ? ( TF_STUNFLAG_CHEERSOUND | TF_STUNFLAG_SLOWDOWN ) : TF_STUNFLAG_SLOWDOWN; 
+                }
+            } else
 				return MRES_Supercede;
-			}
+		} else if (StrEqual(allEntities[inflictor].Class, "tf_weapon_minigun")) // Natascha stun.
+        {
+			override = true;
 
-			// Ammo from the cart or engineer dispensers is flatly ignored.
-			if (ammo_source == kAmmoSource_DispenserOrCart) {
-				returnValue.Value = 0;
-				return MRES_Supercede;
-			}
+            GetEntPropVector(attacker, Prop_Send, "m_vecOrigin", pos1);
+            GetEntPropVector(victim, Prop_Send, "m_vecOrigin", pos2);
+            flStunAmount = RemapValClamped(GetVectorDistance(pos1, pos2, true), 0.0, Pow(1500.0, 2.0), 0.60, 0.40);        
+		}
+
+		if (override) {
+			parameters.Set(1, flStunDuration);
+			parameters.Set(2, flStunAmount);
+			parameters.Set(3, iStunFlags);
+			return MRES_ChangedHandled;
 		}
 	}
-
 	return MRES_Ignored;
 }
 
@@ -4088,17 +4110,7 @@ bool TR_ShortCircuitProjectileRemoval(int entity, int mask, int client)
 
 public Action SoundPlayed(int clients[MAXPLAYERS], int& numClients, char sample[PLATFORM_MAX_PATH], int& entity, int& channel, float& volume, int& level, int& pitch, int& flags, char soundEntry[PLATFORM_MAX_PATH], int& seed)
 {
-    if (StrContains(sample, "pl_impact_stun") != -1)
-    {
-        for (int i = 1; i <= MaxClients; ++i)
-        {
-            if (allPlayers[i].TickSinceBonk == GetGameTickCount()) // Stop BONK! stun sound effect. Can't remove TFCond_Dazed here though - the condition is not applied yet.
-                return Plugin_Stop;
-            else if (StrEqual(allEntities[allPlayers[i].MostRecentProjectileEncounter].Class, "tf_projectile_stun_ball") && allPlayers[i].TicksSinceProjectileEncounter == GetGameTickCount()) // Remove duplicate stun sound fron Sandman.
-                return Plugin_Stop;
-        }
-    }
-    else if (StrContains(sample, "pl_fallpain") != -1)
+    if (StrContains(sample, "pl_fallpain") != -1)
     {
         for (int i = 1; i <= MaxClients; ++i)
         {
