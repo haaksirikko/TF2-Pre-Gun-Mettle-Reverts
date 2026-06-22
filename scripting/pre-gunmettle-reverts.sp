@@ -80,8 +80,6 @@
 #define SENTRYGUN_SAPPER_OWNER_DAMAGE_MODIFIER_OLD 0.66
 #define SENTRYGUN_SAPPER_OWNER_DAMAGE_MODIFIER_NEW 0.33
 
-#define LUNCHBOX_ADDS_MINICRITS_DURATION 15.00
-
 #define TF_WEAPON_PRIMARY_MODE		0
 #define TF_WEAPON_SECONDARY_MODE	1
 
@@ -590,9 +588,6 @@ enum struct Player
     bool ChargeBashHitPlayer;
     bool GiveChargeOnKill;
     int TicksSinceCharge;
-
-    // Buffalo Steak Sandvich.
-    int TicksSinceConsumingSandvich;
 
     // Rescue Ranger.
     int OldMetalCount;
@@ -3782,11 +3777,6 @@ MRESReturn AddCondition(Address thisPointer, DHookParam parameters)
     }
     else if (condition == TFCond_Charging) // Set the player's TicksSinceCharge value. This is necessary for preventing debuffs from being removed via charging.
         allPlayers[client].TicksSinceCharge = GetGameTickCount();
-    else if ((condition == TFCond_RestrictToMelee || condition == TFCond_CritCola) && allPlayers[client].TicksSinceConsumingSandvich == GetGameTickCount()) // Shorten the Buffalo Steak Sandvich effects duration to 15s.
-    {
-        parameters.Set(2, LUNCHBOX_ADDS_MINICRITS_DURATION);
-        return MRES_ChangedHandled;
-    }
     else if (condition == TFCond_UberBulletResist || condition == TFCond_UberBlastResist || condition == TFCond_UberFireResist) // Vaccinator Uber should only last 2s.
     {
         parameters.Set(2, 2.0);
@@ -3972,9 +3962,6 @@ MRESReturn OnShieldBash(int entity)
 
 MRESReturn ApplyBiteEffects(int entity)
 {
-    int index = GetWeaponIndex(entity);
-    if (index == 311) // Buffalo Steak Sandvich.
-        allPlayers[allEntities[entity].Owner].TicksSinceConsumingSandvich = GetGameTickCount();
     return MRES_Ignored;
 }
 
