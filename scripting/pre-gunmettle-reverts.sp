@@ -2134,11 +2134,10 @@ void StructuriseWeaponList(int client)
     }
 
     // Iterate through wearables.
-    Address m_hMyWearables = GetEntityAddress(client) + view_as<Address>(FindSendPropInfo("CTFPlayer", "m_hMyWearables"));
-    for (int i = 0, size = Dereference(m_hMyWearables + view_as<Address>(12)); i < size; ++i)
-    {
-        int entity = LoadEntityHandleFromAddress(view_as<Address>(Dereference(m_hMyWearables) + i * 4));
-        RegisterToWeaponList(client, entity);
+    for (int i = 0; i < TF2Util_GetPlayerWearableCount(client); i++) {
+        int wearable = TF2Util_GetPlayerWearable(client, i);
+        if (wearable != -1)
+            RegisterToWeaponList(client, wearable);
     }
 }
 
@@ -4062,13 +4061,13 @@ MRESReturn DHookCallback_CTFPlayer_GiveAmmo(int client, DHookReturn returnValue,
 		client <= MaxClients
 	) {
 		int amount = parameters.Get(1);
-		int ammo_idx = parameters.Get(2);
+		ETFAmmoType ammo_idx = parameters.Get(2);
 		bool suppress_sound = parameters.Get(3);
 		int ammo_source = parameters.Get(4);
 
 		if (
 			TF2Attrib_HookValueInt(0, "ammo_becomes_health", client) == 1 &&
-			ammo_idx != view_as<int>(TF_AMMO_METAL)
+			ammo_idx != TF_AMMO_METAL
 		) {
 			// Ammo from ground pickups is converted to health.
 			if (ammo_source == kAmmoSource_Pickup) {
