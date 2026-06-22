@@ -44,17 +44,6 @@
 
 #define FLIGHT_TIME_TO_MAX_STUN	1.0
 
-#define TF_STUN_NONE						0
-#define TF_STUN_MOVEMENT					(1<<0)
-#define	TF_STUN_CONTROLS					(1<<1)
-#define TF_STUN_MOVEMENT_FORWARD_ONLY		(1<<2)
-#define TF_STUN_SPECIAL_SOUND				(1<<3)
-#define TF_STUN_DODGE_COOLDOWN				(1<<4)
-#define TF_STUN_NO_EFFECTS					(1<<5)
-#define TF_STUN_LOSER_STATE					(1<<6)
-#define TF_STUN_BY_TRIGGER					(1<<7)
-#define TF_STUN_BOTH						TF_STUN_MOVEMENT | TF_STUN_CONTROLS
-
 #define WL_None 0
 #define WL_Feet 1
 #define WL_Waist 2
@@ -2987,11 +2976,11 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
             float flStunDuration = GetConVarFloat(tf_scout_stunball_base_duration) * flLifeTimeRatio;
             if (damagetype & DMG_CRIT)
                 flStunDuration += 2.0; // Extra two seconds of effect time if we're a critical hit.
-            int iStunFlags = TF_STUN_LOSER_STATE | TF_STUN_MOVEMENT;
+            int iStunFlags = TF_STUNFLAGS_SMALLBONK;
             if (flLifeTimeRatio >= 1.0)
             {
                 flStunDuration += 1.0;
-                iStunFlags = TF_STUN_CONTROLS | TF_STUN_SPECIAL_SOUND;
+                iStunFlags = TF_STUNFLAGS_BIGBONK;
             }
 
             // Adjust stun amount and flags if we're hitting a boss or scaled enemy
@@ -2999,7 +2988,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
             {
                 // If max range, freeze them in place - otherwise adjust it based on distance
                 flStun = flLifeTimeRatio >= 1.0 ? 1.0 : RemapValClamped( flLifeTimeRatio, 0.1, 0.99, 0.5, 0.75 );
-                iStunFlags = flLifeTimeRatio >= 1.0 ? ( TF_STUN_SPECIAL_SOUND | TF_STUN_MOVEMENT ) : TF_STUN_MOVEMENT; 
+                iStunFlags = flLifeTimeRatio >= 1.0 ? ( TF_STUNFLAG_CHEERSOUND | TF_STUNFLAG_SLOWDOWN ) : TF_STUNFLAG_SLOWDOWN; 
             }
 
             if (GetEntProp(victim, Prop_Send, "m_nWaterLevel") != WL_Eyes)
@@ -3129,7 +3118,7 @@ Action ClientDamaged(int victim, int& attacker, int& inflictor, float& damage, i
         {
             // Slow enemy on hit, unless they're being healed by a medic
             if (!TF2_IsPlayerInCondition(victim, TFCond_Healing))
-                TF2_StunPlayer(victim, 0.20, 0.60, TF_STUN_MOVEMENT, attacker);
+                TF2_StunPlayer(victim, 0.20, 0.60, TF_STUNFLAG_SLOWDOWN, attacker);
         }
         if (damagetype & DMG_IGNITE && index == 811 || index == 832) // Huo-Long Heater Ring of Fire attack.
         {
