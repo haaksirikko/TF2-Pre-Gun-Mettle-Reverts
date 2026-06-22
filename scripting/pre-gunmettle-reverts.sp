@@ -196,6 +196,7 @@ int CObjectSentrygun_m_flShieldFadeTime; // *((float *)this + 712)
 Address CBaseObject_m_flHealth; // *((float *)a1 + 652)
 Address CTFPlayer_m_aObjects;
 const Address TFPlayerClassData_t_m_flMaxSpeed = view_as<Address>(640); // *((float *)this + 160)
+int CTFPlayerShared_m_flFeignDeathEnd;
 
 Address SpyClassData;
 
@@ -602,7 +603,6 @@ enum struct Player
     // Dead Ringer.
     bool FeigningDeath;
     int TicksSinceFeignReady;
-    float DamageTakenDuringFeign;
     bool UnderFeignBuffs;
 
     // Weapon models.
@@ -975,6 +975,7 @@ public void OnPluginStart()
     CObjectSentrygun_m_flShieldFadeTime = FindSendPropInfo("CObjectSentrygun", "m_nShieldLevel") + 4;
     CBaseObject_m_flHealth = view_as<Address>(FindSendPropInfo("CBaseObject", "m_bHasSapper") - 4);
     CTFPlayer_m_aObjects = view_as<Address>(FindSendPropInfo("CTFPlayer", "m_iClassModelParity") + 72);
+    CTFPlayerShared_m_flFeignDeathEnd = FindSendPropInfo("CTFPlayer", "m_bFeignDeathReady") - 4;
 
     delete config;
 
@@ -2260,11 +2261,6 @@ float GetBuildingConstructionMultiplier_NoHook(int entity)
     return multiplier;
 }
 
-int GetFeignBuffsEnd(int client)
-{
-    return allPlayers[client].TicksSinceFeignReady + RoundFloat(TICK_RATE * 6.5) - RoundFloat(allPlayers[client].DamageTakenDuringFeign * 1.1);
-}
-
 //////////////////////////////////////////////////////////////////////////////
 // VIEWMODELS                                                               //
 //////////////////////////////////////////////////////////////////////////////
@@ -2483,6 +2479,10 @@ void ApplyOverhealOnKill(int weapon) {
 	}
 }
 
+void SetFeignDeathEnd(int client) {
+	SetEntDataFloat(client, CTFPlayerShared_m_flFeignDeathEnd, GetGameTime() + 6.0);
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // FORWARDS                                                                 //
 //////////////////////////////////////////////////////////////////////////////
@@ -2699,7 +2699,7 @@ public void OnGameFrame()
             if (
                 allPlayers[i].FeigningDeath &&
                 allPlayers[i].UnderFeignBuffs &&
-                GetFeignBuffsEnd(i) < GetGameTickCount()
+                GetEntDataFloat(i, CTFPlayerShared_m_flFeignDeathEnd) < GetGameTime()
             ) {
                 allPlayers[i].UnderFeignBuffs = false;
             }
@@ -3128,9 +3128,13 @@ Action ClientDamagedAlive(int victim, int &attacker, int &inflictor, float &dama
 {
     Action returnValue = Plugin_Continue;
 
-    // Dead Ringer damage reduction.
     if (allPlayers[victim].FeigningDeath && allPlayers[victim].UnderFeignBuffs)
     {
+        // Dead Ringer buff reduction.
+        float m_flFeignDeathEnd = GetEntDataFloat(victim, CTFPlayerShared_m_flFeignDeathEnd);
+        SetEntDataFloat(victim, CTFPlayerShared_m_flFeignDeathEnd, m_flFeignDeathEnd - RemapValClamped(damage, 1.0, 250.0, 0.1, 2.5));
+
+        // Dead Ringer damage reduction.
         damage *= 0.10;
         returnValue = Plugin_Changed;
     }
@@ -3214,11 +3218,6 @@ void AfterClientDamaged(int victim, int attacker, int inflictor, float damage, i
         float newCharge = GetEntPropFloat(victim, Prop_Send, "m_flChargeMeter") - damage * 3;
         SetEntPropFloat(victim, Prop_Send, "m_flChargeMeter", newCharge < 0.00 ? 0.00 : newCharge);
     }
-    if (allPlayers[victim].FeigningDeath) // Dead Ringer damage tracking.
-        allPlayers[victim].DamageTakenDuringFeign += damage;
-    if (allPlayers[victim].TicksSinceFeignReady == GetGameTickCount()) // Set the cloak meter to 100 when feigning.
-        SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", floatMin(GetEntPropFloat(victim, Prop_Send, "m_flCloakMeter") + 50.00, 100.00));
-
 }
 
 void AfterClientSwitchedWeapons(int client, int weapon)
@@ -3662,12 +3661,12 @@ MRESReturn AddCondition(Address thisPointer, DHookParam parameters)
         parameters.Set(2, 2.0);
         return MRES_ChangedHandled;
     }
-    else if (condition == TFCond_Cloaked && DoesPlayerHaveItem(client, 59)) // Simplify feign checks with the Dead Ringer.
+    else if (condition == TFCond_DeadRingered && allPlayers[victim].TicksSinceFeignReady == GetGameTickCount()) // Simplify feign checks with the Dead Ringer.
     {
+        SetEntPropFloat(victim, Prop_Send, "m_flCloakMeter", 100.00); // Set the cloak meter to 100 when feigning.
+        RequestFrame(SetFeignDeathEnd, client);
         allPlayers[client].FeigningDeath = true;
-        allPlayers[client].DamageTakenDuringFeign = 0.00;
         allPlayers[client].UnderFeignBuffs = true;
-        TF2_RemoveCondition(client, TFCond_OnFire); // Extinguish the player.
     }
     else if (condition == TFCond_CloakFlicker && allPlayers[client].FeigningDeath && allPlayers[client].UnderFeignBuffs) // Prevent bump shimmers while feigning with the Dead Ringer.
         return MRES_Supercede;
