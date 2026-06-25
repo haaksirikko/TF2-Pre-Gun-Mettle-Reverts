@@ -2,64 +2,6 @@
 {
 	"tf"
 	{
-		"Addresses"
-		{
-			"MemoryPatch_ShieldTurnCap"
-			{
-				"windows"
-				{
-					"signature" "CTFPlayerMove::SetupMove"
-				}
-				"linux"
-				{
-					"signature" "CTFPlayerMove::SetupMove"
-				}
-			}
-			"MemoryPatch_NormalScorchShotKnockback"
-			{
-				"windows"
-				{
-					"signature" "CTFProjectile_Flare::Explode"
-				}
-				"linux"
-				{
-					"signature" "CTFProjectile_Flare::Explode"
-				}
-			}
-			"MemoryPatch_DisableDebuffShortenWhilstCloaked"
-			{
-				"windows"
-				{
-					"signature" "CTFPlayerShared::UpdateCloakMeter"
-				}
-				"linux"
-				{
-					"signature" "CTFPlayerShared::UpdateCloakMeter"
-				}
-			}
-			"MemoryPatch_FixYourEternalReward"
-			{
-				"windows"
-				{
-					"signature" "CTFPlayer::DisguiseOnKill"
-				}
-				"linux"
-				{
-					"signature" "CTFPlayer::DisguiseOnKill"
-				}
-			}
-			"MemoryPatch_DisguiseIsAlways2Seconds"
-			{
-				"windows"
-				{
-					"signature" "CTFPlayerShared::Disguise"
-				}
-				"linux"
-				{
-					"signature" "CTFPlayerShared::Disguise"
-				}
-			}
-		}
 		"Signatures"
 		{
 			"CTFPlayerMove::SetupMove" // look in CTFPlayerMove vtable
@@ -85,7 +27,7 @@
 			"CTFProjectile_Flare::Explode"
 			{
 				"library" "server"
-				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\x68\x01\x00\x00\x56\x57\x8B\xF9\x8B\x87\x3C\x01\x00\x00\xC1\xE8\x0B\xA8\x01\x74\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x87\xB8\x02\x00\x00" // xrefs to string "Rubber.BulletImpact"
+				"windows" "\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x2A\x89\x6C\x24\x2A\x8B\xEC\x81\xEC\x58\x01\x00\x00\x56\x57\x8B\xF9\x8B\x87" // xrefs to string "Rubber.BulletImpact"
 				"linux"   "@_ZN19CTFProjectile_Flare7ExplodeEP10CGameTraceP11CBaseEntity"
 			}
 
@@ -106,12 +48,6 @@
 				"library" "server"
 				"windows" "\x55\x8B\xEC\x83\xEC\x08\x53\x57\x8B\xF9\x8B\x87\xB4\x1B\x00\x00"
 				"linux"   "@_ZNK9CTFPlayer10CanAirDashEv"
-			}
-			"CTFPlayer::Taunt" // offset aCosmeticTauntS ; "cosmetic_taunt_sound"
-			{
-				"library" "server"
-				"windows" "\x55\x8B\xEC\x81\xEC\xD4\x00\x00\x00\x53\x56\x57\x8B\xF9\xE8\x2A\x2A\x2A\x2A"
-				"linux"   "@_ZN9CTFPlayer5TauntE8taunts_ti"
 			}
 			"CTFPlayer::GetObjectOfType" // offset aMultDmgBulletV ; "mult_dmg_bullet_vs_sentry_target", two function calls down - just above dynamic cast
 			{
@@ -174,13 +110,6 @@
 				"windows" "\x55\x8B\xEC\x83\xEC\x08\x53\x8B\x5D\x08\x56\x53"
 				"linux"   "@_ZN15CTFPlayerShared10RemoveCondE7ETFCondb"
 			}
-			// "CTFPlayerShared::ModifyRage"
-			"CTFPlayerShared::SetRageMeter" // aRageOnHit "rage_on_hit", go to subroutine call after SIMD instruction ~~go to subroutine (2nd line down previously) that is just a one-liner func call~~
-			{
-				"library" "server"
-				"windows" "\x55\x8B\xEC\xF3\x0F\x10\x45\x08\x83\xEC\x08"
-				"linux"	  "@_ZN15CTFPlayerShared12SetRageMeterEf"
-			}
 			"CTFPlayerShared::CalcChargeCrit" // offset aLoseDemoCharge ; "lose_demo_charge_on_damage_when_chargin"..., function is NOT ontakedamage, doesn't have incond call either
 			{
 				"library" "server"
@@ -224,14 +153,6 @@
 				"library" "server"
 				"windows" "\xA1\x2A\x2A\x2A\x2A\x6A\x01\x6A\x00\x51"
 				"linux"   "@_ZN9CTFWrench20GetConstructionValueEv"
-			}
-
-			"CTFWearable::Break" // offset aSetBlockbackst ; "set_blockbackstab_once", below 2nd vtable reference, it should be 1nd func call
-			{
-				"library" "server"
-				// get a load of this guy
-				"windows" "\x55\x8B\xEC\x83\xEC\x20\x56\x8B\xF1\x8B\x86\x3C\x01\x00\x00\xC1\xE8\x0B\xA8\x01\x74\x2A\xE8\x2A\x2A\x2A\x2A\x57\x8D\x4D\xE0\xE8\x2A\x2A\x2A\x2A\x8D\xBE\xB8\x02\x00\x00\xC7\x45\xE0\x2A\x2A\x2A\x2A\x57\x8D\x4D\xE0\xE8\x2A\x2A\x2A\x2A\x8D\x45\xE0\x68\x2A\x2A\x2A\x2A\x50\xE8\x2A\x2A\x2A\x2A\x8B\x06\x83\xC4\x08\x8B\xCE\xFF\x50\x18\x50\xE8\x2A\x2A\x2A\x2A\x8B\x86\x3C\x01\x00\x00\x83\xC4\x04\xC1\xE8\x0B\xA8\x01\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x57\xE8\x2A\x2A\x2A\x2A\x8B\x86\x3C\x01\x00\x00\x83\xC4\x04\xC1\xE8\x0B\x5F\xA8\x01\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8D\x86\x34\x03\x00\x00\x50\xE8\x2A\x2A\x2A\x2A\x8B\x06"
-				"linux"   "@_ZN11CTFWearable5BreakEv"
 			}
 
 			"CTFWearableDemoShield::ShieldBash" /// offset aDemochargeHitf_0 ; "DemoCharge.HitFleshRange", not the precache function
@@ -326,44 +247,16 @@
 				"windows" "\x55\x8B\xEC\x53\x56\x8B\x75\x2A\x8B\xD9\x57\x8B\x7D\x2A\x89\x75"
 				"linux"   "@_ZN9CTFPlayer8GiveAmmoEiib11EAmmoSource"
 			}
+			// "player_stunned"
+			"CTFPlayerShared::StunPlayer"
+			{
+				"library" "server"
+				"windows" "\x55\x8B\xEC\x83\xEC\x20\x57\x8B\xF9\x8B\x87\x2A\x2A\x2A\x2A\x40"
+				"linux" "@_ZN15CTFPlayerShared10StunPlayerEffiP9CTFPlayer"
+			}
 		}
 		"Offsets"
 		{
-			"MemoryPatch_ShieldTurnCap"
-			{
-				"windows" "150"
-				"linux"   "240"
-			}
-
-			"MemoryPatch_NormalScorchShotKnockback"
-			{
-				"windows" "771"
-				"linux"   "3372"
-			}
-
-			"MemoryPatch_DisableDebuffShortenWhilstCloaked"
-			{
-				"windows" "899"
-				"linux"   "187"
-			}
-
-			"MemoryPatch_FixYourEternalReward"
-			{
-				"windows" "111" // find CTFPlayer::CanDisguise() with offset aSetCannotDisgu ; "set_cannot_disguise" (SMALLER FUNCTION), set name of it, patch out jz
-				"linux"   "133"
-			}
-			"MemoryPatch_FixYourEternalReward_NOPCount"
-			{
-				"windows" "2"
-				"linux"   "6"
-			}
-
-			"MemoryPatch_DisguiseIsAlways2Seconds" // look for the 0.5 near the end
-			{
-				"windows" "546"
-				"linux"   "528"
-			}
-
 			"GetRadius"
 			{
 				"windows" "244"
@@ -501,6 +394,13 @@
 				"windows"	"439"
 				"linux"		"446"
 			}
+
+			"CTFStunBall::ApplyBallImpactEffectOnVictim"
+			{
+				"windows"	"267"
+				"linux"		"268"
+			}
+
 
 			"CGameTrace::m_pEnt"
 			{
@@ -732,6 +632,20 @@
 					}
 				}
 			}
+			"CTFStunBall::ApplyBallImpactEffectOnVictim"
+			{
+				"offset"	"CTFStunBall::ApplyBallImpactEffectOnVictim"
+				"hooktype"	"entity"
+				"this"		"entity"
+				"return"	"void"
+				"arguments"
+				{
+					"pOther"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
 
 			"InternalCalculateObjectCost"
 			{
@@ -786,24 +700,6 @@
 				"callconv"  "thiscall"
 				"this"      "entity"
 				"return"    "bool"
-			}
-			"CTFPlayer::Taunt"
-			{
-				"signature" "CTFPlayer::Taunt"
-				"callconv"  "thiscall"
-				"this"      "entity"
-				"return"    "void"
-				"arguments"
-				{
-					"taunts_t"
-					{
-						"type" "int"
-					}
-					"iTauntConcept"
-					{
-						"type" "int"
-					}
-				}
 			}
 			"CTFPlayer::RegenThink"
 			{
@@ -916,21 +812,6 @@
 					"ETFCond"
 					{
 						"type" "int"
-					}
-				}
-			}
-			//"CTFPlayerShared::ModifyRage"
-			"CTFPlayerShared::SetRageMeter"
-			{
-				"signature" "CTFPlayerShared::SetRageMeter"
-				"callconv"  "thiscall"
-				"this"      "address"
-				"return"    "void"
-				"arguments"
-				{
-					"fDelta"
-					{
-						"type" "float"
 					}
 				}
 			}
@@ -1057,13 +938,6 @@
 			"CTFMinigun::SharedAttack"
 			{
 				"signature" "CTFMinigun::SharedAttack"
-				"callconv"  "thiscall"
-				"this"      "entity"
-				"return"    "void"
-			}
-			"CTFWearable::Break"
-			{
-				"signature" "CTFWearable::Break"
 				"callconv"  "thiscall"
 				"this"      "entity"
 				"return"    "void"
@@ -1229,6 +1103,79 @@
 					{
 						"type" "int"
 					}
+				}
+			}
+			"CTFPlayerShared::StunPlayer"
+			{
+				"signature"	"CTFPlayerShared::StunPlayer"
+				"callconv"	"thiscall"
+				"this"		"address"
+				"return"	"void"
+				"arguments"
+				{
+					"flTime"
+					{
+						"type"	"float"
+					}
+					"flReductionAmount"
+					{
+						"type"	"float"
+					}
+					"iStunFlags"
+					{
+						"type"	"int"
+					}
+					"pAttacker"
+					{
+						"type"	"int"
+					}
+				}
+			}
+		}
+		"MemPatches"
+		{
+			"MemoryPatch_ShieldTurnCap"
+			{
+				"signature" "CTFPlayerMove::SetupMove"
+				"windows"
+				{
+					"offset"	"150"
+				}
+				"linux"
+				{
+					"offset"	"240"
+				}
+			}
+			"MemoryPatch_NormalScorchShotKnockback" // look for the 400.0 vs 100.0; patch the 400.0
+			{
+				"signature" "CTFProjectile_Flare::Explode"
+				"windows"
+				{
+					"offset"	"2fch"
+					"verify"	"\xf3\x0f\x10\x15\x2a\x2a\x2a\x2a" // movss xmm1, dword ptr [float_xxxxxxxx]
+					"patch"		"\xf3\x0f\x10\x15\x00\x00\x00\x00" // patch address operand to plugin-provided data
+				}
+				"linux"
+				{
+					"offset"	"d28h"
+					"verify"	"\xf3\x0f\x10\x05\x2a\x2a\x2a\x2a" // movss xmm0, dword ptr [float_xxxxxxxx]
+					"patch"		"\xf3\x0f\x10\x05\x00\x00\x00\x00" // patch address operand to plugin-provided data
+				}
+			}
+			"MemoryPatch_DisguiseIsAlways2Seconds" // look for the 0.5 near the end
+			{
+				"signature" "CTFPlayerShared::Disguise"
+				"windows"
+				{
+					"offset"	"215h"
+					"verify"	"\xf3\x0f\x10\x05\x2a\x2a\x2a\x2a" // movss xmm0, dword ptr [float_xxxxxxxx]
+					"patch"		"\xf3\x0f\x10\x05\x00\x00\x00\x00" // patch address operand to plugin-provided data
+				}
+				"linux"
+				{
+					"offset"	"1f6h"
+					"verify"	"\xf3\x0f\x10\x05\x2a\x2a\x2a\x2a" // movss xmm0, dword ptr [float_xxxxxxxx]
+					"patch"		"\xf3\x0f\x10\x05\x00\x00\x00\x00" // patch address operand to plugin-provided data
 				}
 			}
 		}
